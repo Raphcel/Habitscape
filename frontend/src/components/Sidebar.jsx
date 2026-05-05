@@ -1,7 +1,8 @@
 import React from 'react';
+import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, Camera, LineChart, Clock, Bell, Settings, ChevronLeft } from 'lucide-react';
 
-export default function Sidebar({ activePage, setActivePage }) {
+export default function Sidebar() {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'snapfood', label: 'Snap-Food Tracker', icon: Camera },
@@ -27,20 +28,24 @@ export default function Sidebar({ activePage, setActivePage }) {
       {/* Main Navigation */}
       <nav className="flex-1 px-4 mt-8 flex flex-col gap-2">
         {navItems.map((item) => (
-          <button
+          <NavLink
             key={item.id}
-            onClick={() => setActivePage(item.id)}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg w-full text-left transition-colors ${
-              activePage === item.id 
-                ? 'bg-brand-orange-light text-brand-orange-dark' 
+            to={`/app/${item.id}`}
+            className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-lg w-full text-left transition-colors ${
+              isActive 
+                ? 'bg-brand-orange-light text-brand-orange-dark font-medium' 
                 : 'text-text-main hover:bg-gray-50'
             }`}
           >
-            <item.icon className={`w-5 h-5 ${activePage === item.id ? '' : 'text-gray-700'}`} />
-            <span className={`text-[16px] ${activePage === item.id ? 'font-medium' : ''}`}>
-              {item.label}
-            </span>
-          </button>
+            {({ isActive }) => (
+              <>
+                <item.icon className={`w-5 h-5 ${isActive ? '' : 'text-gray-700'}`} />
+                <span className="text-[16px]">
+                  {item.label}
+                </span>
+              </>
+            )}
+          </NavLink>
         ))}
       </nav>
 

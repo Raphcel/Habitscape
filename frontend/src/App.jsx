@@ -11,16 +11,17 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 
 function AppLayout() {
-  const [activePage, setActivePage] = useState('dashboard');
-  
   return (
     <div className="flex min-h-screen bg-bg-main font-sans">
-      <Sidebar activePage={activePage} setActivePage={setActivePage} />
+      <Sidebar />
       <div className="flex-1 w-full min-w-0">
-        {activePage === 'dashboard' && <Dashboard />}
-        {activePage === 'snapfood' && <SnapFoodTracker />}
-        {activePage === 'history' && <History />}
-        {activePage === 'forecaster' && <HealthForecaster />}
+        <Routes>
+          <Route path="/" element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="snapfood" element={<SnapFoodTracker />} />
+          <Route path="history" element={<History />} />
+          <Route path="forecaster" element={<HealthForecaster />} />
+        </Routes>
       </div>
     </div>
   );

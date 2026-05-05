@@ -1,22 +1,76 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle2, TrendingUp, MessageSquare, Camera, Activity, BrainCircuit } from 'lucide-react';
 
 const LandingPage = () => {
+  const [activeSection, setActiveSection] = useState('home');
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const sections = ['home', 'about', 'features'];
+      // Trigger a bit before the section reaches the exact top
+      const scrollPosition = window.scrollY + window.innerHeight / 3;
+
+      for (const section of sections) {
+        const element = document.getElementById(section);
+        if (element) {
+          const { offsetTop, offsetHeight } = element;
+          if (scrollPosition >= offsetTop && scrollPosition < offsetTop + offsetHeight) {
+            setActiveSection(section);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    // Call once to set initial state
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToSection = (e, id) => {
+    e.preventDefault();
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#FFFDFB] font-sans overflow-x-hidden selection:bg-brand-orange/20 selection:text-brand-orange-dark">
       {/* Navigation */}
-      <nav className="fixed top-0 w-full bg-white/80 backdrop-blur-md z-50 border-b border-gray-100">
+      <nav className="fixed top-0 w-full bg-white/80 backdrop-blur-md z-50 border-b border-gray-100 transition-all duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
             <div className="flex items-center gap-2">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2D3134" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
               <span className="font-extrabold text-xl tracking-tight text-[#2D3134]">Habitscape</span>
             </div>
-            <div className="hidden md:flex space-x-10">
-              <a href="#home" className="text-sm font-bold text-brand-orange border-b-2 border-brand-orange pb-1 transition-colors">Home</a>
-              <a href="#about" className="text-sm font-semibold text-gray-500 hover:text-gray-900 transition-colors">About</a>
-              <a href="#features" className="text-sm font-semibold text-gray-500 hover:text-gray-900 transition-colors">Features</a>
+            <div className="hidden md:flex space-x-10 relative">
+              <a 
+                href="#home" 
+                onClick={(e) => scrollToSection(e, 'home')}
+                className={`text-sm font-bold pb-1 transition-all duration-300 relative ${activeSection === 'home' ? 'text-brand-orange' : 'text-gray-500 hover:text-gray-900'}`}
+              >
+                Home
+                {activeSection === 'home' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-brand-orange rounded-t-sm transition-all duration-300"></span>}
+              </a>
+              <a 
+                href="#about" 
+                onClick={(e) => scrollToSection(e, 'about')}
+                className={`text-sm font-bold pb-1 transition-all duration-300 relative ${activeSection === 'about' ? 'text-brand-orange' : 'text-gray-500 hover:text-gray-900'}`}
+              >
+                About
+                {activeSection === 'about' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-brand-orange rounded-t-sm transition-all duration-300"></span>}
+              </a>
+              <a 
+                href="#features" 
+                onClick={(e) => scrollToSection(e, 'features')}
+                className={`text-sm font-bold pb-1 transition-all duration-300 relative ${activeSection === 'features' ? 'text-brand-orange' : 'text-gray-500 hover:text-gray-900'}`}
+              >
+                Features
+                {activeSection === 'features' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-brand-orange rounded-t-sm transition-all duration-300"></span>}
+              </a>
             </div>
             <div className="flex items-center space-x-4">
               <Link to="/login" className="hidden md:block text-sm font-bold text-[#2D3134] hover:text-brand-orange transition-colors">Log In</Link>
