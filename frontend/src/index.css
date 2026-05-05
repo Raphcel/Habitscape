@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-orange: #FF8235;
+  --color-brand-orange-light: #FFF1E8;
+  --color-brand-orange-dark: #BC4B03;
+  --color-text-main: #2D3134;
+  --color-bg-main: #FFFAF5;
+  --font-sans: 'Plus Jakarta Sans', 'Roboto', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+body {
+  background-color: var(--color-bg-main);
+  color: var(--color-text-main);
+  margin: 0;
+  padding: 0;
+}
