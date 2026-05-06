@@ -1,14 +1,21 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const navigate = useNavigate();
+  const { login, loading, error, setError } = useAuth();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    navigate('/app');
+    const result = await login(email, password);
+    if (result.success) {
+      navigate('/app');
+    }
   };
 
   return (
@@ -37,6 +44,12 @@ const Login = () => {
             <h1 className="text-3xl font-bold text-gray-900 mb-2 tracking-tight">Welcome back</h1>
             <p className="text-gray-500 text-sm mb-8">Log in to continue building better habits.</p>
 
+            {error && (
+              <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm">
+                {error}
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -46,6 +59,8 @@ const Login = () => {
                   type="email" 
                   placeholder="Write your email" 
                   className="w-full px-4 py-3.5 rounded-xl border border-gray-200 focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all text-sm"
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); setError(null); }}
                   required
                 />
               </div>
@@ -59,6 +74,8 @@ const Login = () => {
                     type={showPassword ? "text" : "password"} 
                     placeholder="Write your password" 
                     className="w-full px-4 py-3.5 rounded-xl border border-gray-200 focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all text-sm pr-12"
+                    value={password}
+                    onChange={(e) => { setPassword(e.target.value); setError(null); }}
                     required
                   />
                   <button 
@@ -79,9 +96,10 @@ const Login = () => {
 
               <button 
                 type="submit" 
-                className="w-full bg-brand-orange hover:bg-brand-orange-dark text-white font-semibold py-3.5 rounded-xl transition-all shadow-lg shadow-brand-orange/20 mt-2 active:scale-[0.98]"
+                disabled={loading}
+                className="w-full bg-brand-orange hover:bg-brand-orange-dark text-white font-semibold py-3.5 rounded-xl transition-all shadow-lg shadow-brand-orange/20 mt-2 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Log In
+                {loading ? 'Logging in…' : 'Log In'}
               </button>
             </form>
 
