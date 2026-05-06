@@ -20,8 +20,12 @@ const signToken = (payload) =>
  * Throws descriptive errors on conflict or validation issues.
  */
 const register = async ({ name, email, password }) => {
+  // 0. Normalize
+  const normalizedEmail = email.trim().toLowerCase();
+  const trimmedName = name.trim();
+
   // 1. Conflict check
-  const existing = await findByEmail(email);
+  const existing = await findByEmail(normalizedEmail);
   if (existing) {
     const err = new Error('Email already in use');
     err.statusCode = 409;
@@ -32,7 +36,7 @@ const register = async ({ name, email, password }) => {
   const passwordHash = await hashPassword(password);
 
   // 3. Persist
-  const user = await createUser({ name, email, passwordHash });
+  const user = await createUser({ name: trimmedName, email: normalizedEmail, passwordHash });
 
   // 4. Sign token
   const token = signToken({ id: user.id, email: user.email });
@@ -45,8 +49,11 @@ const register = async ({ name, email, password }) => {
  * Uses a generic error message on failure to avoid user enumeration.
  */
 const login = async ({ email, password }) => {
+  // 0. Normalize
+  const normalizedEmail = email.trim().toLowerCase();
+
   // 1. Load user (including password_hash)
-  const row = await findByEmail(email);
+  const row = await findByEmail(normalizedEmail);
 
   // Generic message — do NOT reveal whether email exists
   const invalidErr = new Error('Invalid email or password');

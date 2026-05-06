@@ -8,10 +8,9 @@ const pool = new Pool({
   connectionTimeoutMillis: 5_000,
 });
 
-// Surface connection errors early
+// Surface idle-client errors in logs — do NOT exit the process for this
 pool.on('error', (err) => {
-  console.error('[DB] Unexpected pool error', err);
-  process.exit(1);
+  console.error('[DB] Unexpected pool client error:', err.message);
 });
 
 /**

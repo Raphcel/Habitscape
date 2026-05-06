@@ -1,14 +1,30 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const navigate = useNavigate();
+  const { register, loading, error, setError } = useAuth();
 
-  const handleSubmit = (e) => {
+  const clearErrors = () => {
+    setError(null);
+    setFieldErrors({});
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    navigate('/app');
+    const result = await register(name, email, password);
+    if (result.success) {
+      navigate('/app');
+    } else if (result.errors) {
+      setFieldErrors(result.errors);
+    }
   };
 
   return (
@@ -35,40 +51,65 @@ const Register = () => {
             <h1 className="text-3xl font-bold text-gray-900 mb-2 tracking-tight">Create an account</h1>
             <p className="text-gray-500 text-sm mb-8">Join Habitscape to start building better habits.</p>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            {/* API-level error banner */}
+            {error && (
+              <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-4" noValidate>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1.5">
                   Full Name<span className="text-red-500 ml-1">*</span>
                 </label>
                 <input 
+                  id="name"
                   type="text" 
                   placeholder="John Doe" 
-                  className="w-full px-4 py-3.5 rounded-xl border border-gray-200 focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all text-sm"
+                  className={`w-full px-4 py-3.5 rounded-xl border ${fieldErrors.name ? 'border-red-400' : 'border-gray-200'} focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all text-sm`}
+                  value={name}
+                  onChange={(e) => { setName(e.target.value); clearErrors(); }}
+                  autoComplete="name"
                   required
                 />
+                {fieldErrors.name && (
+                  <p className="mt-1 text-xs text-red-500">{fieldErrors.name[0]}</p>
+                )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">
                   Email Address<span className="text-red-500 ml-1">*</span>
                 </label>
                 <input 
+                  id="email"
                   type="email" 
                   placeholder="Write your email" 
-                  className="w-full px-4 py-3.5 rounded-xl border border-gray-200 focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all text-sm"
+                  className={`w-full px-4 py-3.5 rounded-xl border ${fieldErrors.email ? 'border-red-400' : 'border-gray-200'} focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all text-sm`}
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); clearErrors(); }}
+                  autoComplete="email"
                   required
                 />
+                {fieldErrors.email && (
+                  <p className="mt-1 text-xs text-red-500">{fieldErrors.email[0]}</p>
+                )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1.5">
                   Password<span className="text-red-500 ml-1">*</span>
                 </label>
                 <div className="relative">
                   <input 
+                    id="password"
                     type={showPassword ? "text" : "password"} 
-                    placeholder="Create a password" 
-                    className="w-full px-4 py-3.5 rounded-xl border border-gray-200 focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all text-sm pr-12"
+                    placeholder="Min. 8 characters" 
+                    className={`w-full px-4 py-3.5 rounded-xl border ${fieldErrors.password ? 'border-red-400' : 'border-gray-200'} focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all text-sm pr-12`}
+                    value={password}
+                    onChange={(e) => { setPassword(e.target.value); clearErrors(); }}
+                    autoComplete="new-password"
                     required
                   />
                   <button 
@@ -79,13 +120,17 @@ const Register = () => {
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
+                {fieldErrors.password && (
+                  <p className="mt-1 text-xs text-red-500">{fieldErrors.password[0]}</p>
+                )}
               </div>
 
               <button 
                 type="submit" 
-                className="w-full bg-brand-orange hover:bg-brand-orange-dark text-white font-semibold py-3.5 rounded-xl transition-all shadow-lg shadow-brand-orange/20 mt-4 active:scale-[0.98]"
+                disabled={loading}
+                className="w-full bg-brand-orange hover:bg-brand-orange-dark text-white font-semibold py-3.5 rounded-xl transition-all shadow-lg shadow-brand-orange/20 mt-4 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Sign Up
+                {loading ? 'Creating account…' : 'Sign Up'}
               </button>
             </form>
 
@@ -99,7 +144,7 @@ const Register = () => {
             </div>
 
             <div className="mt-6">
-              <button className="w-full flex items-center justify-center gap-3 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium py-3.5 rounded-xl transition-colors shadow-sm">
+              <button type="button" className="w-full flex items-center justify-center gap-3 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium py-3.5 rounded-xl transition-colors shadow-sm">
                 <svg width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                   <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>

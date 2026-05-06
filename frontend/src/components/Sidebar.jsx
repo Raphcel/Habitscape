@@ -1,14 +1,28 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Camera, LineChart, Clock, Bell, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, Camera, LineChart, Clock, Bell, Settings, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 export default function Sidebar({ isOpen, setIsOpen }) {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'snapfood', label: 'Snap-Food Tracker', icon: Camera },
-    { id: 'forecaster', label: 'Health Forecaster', icon: LineChart },
-    { id: 'history', label: 'History', icon: Clock },
+    { id: 'dashboard',  label: 'Dashboard',         icon: LayoutDashboard },
+    { id: 'snapfood',   label: 'Snap-Food Tracker',  icon: Camera },
+    { id: 'forecaster', label: 'Health Forecaster',  icon: LineChart },
+    { id: 'history',    label: 'History',            icon: Clock },
   ];
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  // Generate initials avatar from user's name
+  const initials = user?.name
+    ? user.name.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase()
+    : '?';
 
   return (
     <aside className={`bg-white border-r border-brand-orange-light flex flex-col h-screen fixed left-0 top-0 overflow-y-auto z-50 transition-all duration-300 ${isOpen ? 'w-64' : 'w-20'}`}>
@@ -36,45 +50,66 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           <NavLink
             key={item.id}
             to={`/app/${item.id}`}
-            title={!isOpen ? item.label : ""}
-            className={({ isActive }) => `flex items-center ${isOpen ? 'gap-3 px-3' : 'justify-center px-0'} py-2.5 rounded-lg w-full text-left transition-colors ${
-              isActive 
-                ? 'bg-brand-orange-light text-brand-orange-dark font-medium' 
-                : 'text-text-main hover:bg-gray-50'
-            }`}
+            title={!isOpen ? item.label : ''}
+            className={({ isActive }) =>
+              `flex items-center ${isOpen ? 'gap-3 px-3' : 'justify-center px-0'} py-2.5 rounded-lg w-full text-left transition-colors ${
+                isActive
+                  ? 'bg-brand-orange-light text-brand-orange-dark font-medium'
+                  : 'text-text-main hover:bg-gray-50'
+              }`
+            }
           >
             {({ isActive }) => (
               <>
                 <item.icon className={`w-5 h-5 shrink-0 ${isActive ? '' : 'text-gray-700'}`} />
-                {isOpen && (
-                  <span className="text-[16px] whitespace-nowrap">
-                    {item.label}
-                  </span>
-                )}
+                {isOpen && <span className="text-[16px] whitespace-nowrap">{item.label}</span>}
               </>
             )}
           </NavLink>
         ))}
       </nav>
 
-      {/* Footer Navigation */}
+      {/* Footer */}
       <div className="px-4 pb-4 pt-4 border-t border-gray-200">
         <div className="flex flex-col gap-2">
-          <a href="#" title={!isOpen ? "Notifications" : ""} className={`flex items-center ${isOpen ? 'gap-3 px-3' : 'justify-center px-0'} py-2.5 text-text-main hover:bg-gray-50 rounded-lg transition-colors`}>
+          <a href="#" title={!isOpen ? 'Notifications' : ''} className={`flex items-center ${isOpen ? 'gap-3 px-3' : 'justify-center px-0'} py-2.5 text-text-main hover:bg-gray-50 rounded-lg transition-colors`}>
             <Bell className="w-5 h-5 shrink-0 text-gray-700" />
             {isOpen && <span className="text-[16px] whitespace-nowrap">Notifications</span>}
           </a>
-          <a href="#" title={!isOpen ? "Setting" : ""} className={`flex items-center ${isOpen ? 'gap-3 px-3' : 'justify-center px-0'} py-2.5 text-text-main hover:bg-gray-50 rounded-lg transition-colors`}>
+          <a href="#" title={!isOpen ? 'Settings' : ''} className={`flex items-center ${isOpen ? 'gap-3 px-3' : 'justify-center px-0'} py-2.5 text-text-main hover:bg-gray-50 rounded-lg transition-colors`}>
             <Settings className="w-5 h-5 shrink-0 text-gray-700" />
-            {isOpen && <span className="text-[16px] whitespace-nowrap">Setting</span>}
+            {isOpen && <span className="text-[16px] whitespace-nowrap">Settings</span>}
           </a>
-          
-          <div className={`flex items-center ${isOpen ? 'gap-3 px-3' : 'justify-center px-0'} py-2.5 mt-2`} title={!isOpen ? "Alex Morgan" : ""}>
-            <div className="w-8 h-8 rounded-full bg-gray-300 overflow-hidden shrink-0">
-              {/* Avatar placeholder */}
-              <img src="https://i.pravatar.cc/150?u=a042581f4e29026704d" alt="Alex Morgan" className="w-full h-full object-cover" />
+
+          {/* Logout */}
+          <button
+            onClick={handleLogout}
+            title={!isOpen ? 'Log Out' : ''}
+            className={`flex items-center ${isOpen ? 'gap-3 px-3' : 'justify-center px-0'} py-2.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors w-full text-left`}
+          >
+            <LogOut className="w-5 h-5 shrink-0" />
+            {isOpen && <span className="text-[16px] whitespace-nowrap">Log Out</span>}
+          </button>
+
+          {/* User info */}
+          <div
+            className={`flex items-center ${isOpen ? 'gap-3 px-3' : 'justify-center px-0'} py-2.5 mt-1`}
+            title={!isOpen ? user?.name ?? 'User' : ''}
+          >
+            {/* Initials avatar — no external request needed */}
+            <div className="w-8 h-8 rounded-full bg-brand-orange flex items-center justify-center shrink-0">
+              <span className="text-white text-xs font-bold">{initials}</span>
             </div>
-            {isOpen && <span className="text-[16px] text-text-main font-medium whitespace-nowrap overflow-hidden text-ellipsis">Alex Morgan</span>}
+            {isOpen && (
+              <div className="overflow-hidden">
+                <p className="text-[15px] text-text-main font-medium whitespace-nowrap overflow-hidden text-ellipsis">
+                  {user?.name ?? 'User'}
+                </p>
+                <p className="text-[12px] text-gray-400 whitespace-nowrap overflow-hidden text-ellipsis">
+                  {user?.email ?? ''}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
