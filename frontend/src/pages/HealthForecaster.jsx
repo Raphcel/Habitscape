@@ -17,7 +17,7 @@ export default function HealthForecaster() {
   };
 
   return (
-    <main className="flex-1 ml-64 p-8 min-h-screen">
+    <main className="flex-1 p-8 min-h-screen">
       <div className="max-w-4xl">
         <header className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-1">Precision BMI Forecaster</h1>

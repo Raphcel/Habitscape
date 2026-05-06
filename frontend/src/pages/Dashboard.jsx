@@ -3,7 +3,7 @@ import { Activity, Droplet, Zap, BatteryCharging, Utensils, PersonStanding, Bell
 
 export default function Dashboard() {
   return (
-    <main className="flex-1 ml-64 p-8">
+    <main className="flex-1 p-8">
 
         <div className="max-w-4xl">
           <header className="mb-8">

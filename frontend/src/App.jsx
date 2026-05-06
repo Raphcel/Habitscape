@@ -11,10 +11,12 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 
 function AppLayout() {
+  const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
+  
   return (
     <div className="flex min-h-screen bg-bg-main font-sans">
-      <Sidebar />
-      <div className="flex-1 w-full min-w-0">
+      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
+      <div className={`flex-1 w-full min-w-0 transition-all duration-300 ${isSidebarOpen ? 'ml-64' : 'ml-20'}`}>
         <Routes>
           <Route path="/" element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />

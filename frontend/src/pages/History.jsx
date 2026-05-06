@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, Edit2, Trash2 } from 'lucide-react';
 
 export default function History() {
   return (
-    <main className="flex-1 ml-64 p-8 min-h-screen">
+    <main className="flex-1 p-8 min-h-screen">
       <div className="max-w-5xl">
         <header className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-1">History & Progress</h1>
