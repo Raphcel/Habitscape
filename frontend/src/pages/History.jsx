@@ -1,7 +1,71 @@
-import React from 'react';
-import { ChevronLeft, ChevronRight, Edit2, Trash2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, Edit2, Trash2, Camera, Loader2 } from 'lucide-react';
+import api from '../lib/api';
 
 export default function History() {
+  const [foodLogs, setFoodLogs] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Editing state
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({ meal_name: '', calories: 0, protein: 0, carbs: 0, fat: 0 });
+
+  const fetchFoodLogs = async () => {
+    try {
+      setIsLoading(true);
+      const res = await api.get('/food-logs');
+      setFoodLogs(res.data.data.data); // The backend wraps it as sendSuccess(res, { data, total, limit, offset }) so res.data.data.data
+    } catch (err) {
+      console.error('Failed to fetch food logs:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFoodLogs();
+  }, []);
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this log?')) return;
+    try {
+      await api.delete(`/food-logs/${id}`);
+      fetchFoodLogs();
+    } catch (err) {
+      console.error('Failed to delete log:', err);
+    }
+  };
+
+  const handleEditClick = (log) => {
+    setEditingId(log.id);
+    setEditForm({
+      meal_name: log.meal_name || '',
+      calories: log.calories || 0,
+      protein: log.protein || 0,
+      carbs: log.carbs || 0,
+      fat: log.fat || 0,
+    });
+  };
+
+  const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    setEditForm(prev => ({
+      ...prev,
+      [name]: name === 'meal_name' ? value : (value === '' ? '' : Number(value))
+    }));
+  };
+
+  const handleSaveEdit = async (id) => {
+    try {
+      await api.patch(`/food-logs/${id}`, editForm);
+      setEditingId(null);
+      fetchFoodLogs();
+    } catch (err) {
+      console.error('Failed to update log:', err);
+      alert('Failed to update log');
+    }
+  };
+
   return (
     <main className="flex-1 p-8 min-h-screen">
       <div className="max-w-5xl">
@@ -199,7 +263,7 @@ export default function History() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-[10px] text-gray-400 font-bold tracking-wider uppercase border-b border-gray-100">
-                  <th className="pb-3 font-medium">Meal Name</th>
+                  <th className="pb-3 font-medium">Meal</th>
                   <th className="pb-3 font-medium">Time</th>
                   <th className="pb-3 font-medium">Calories</th>
                   <th className="pb-3 font-medium">Macros (P/C/F)</th>
@@ -207,26 +271,81 @@ export default function History() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {[
-                  { name: 'Avocado Toast & Eggs', time: '04/24/2026 18:46', cal: 450, macros: '22g / 28g / 32g' },
-                  { name: 'Salmon Poke Bowl', time: '04/24/2026 18:46', cal: 520, macros: '38g / 45g / 18g' },
-                  { name: 'Greek Yogurt with Berries', time: '04/24/2026 18:46', cal: 210, macros: '18g / 24g / 6g' },
-                ].map((row, i) => (
-                  <tr key={i} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="py-4 font-semibold text-gray-800">{row.name}</td>
-                    <td className="py-4 text-gray-500">{row.time}</td>
-                    <td className="py-4">
-                      <span className="text-brand-orange bg-orange-50 px-2 py-1 rounded font-medium text-xs">
-                        {row.cal} kcal
-                      </span>
-                    </td>
-                    <td className="py-4 text-gray-500 font-medium">{row.macros}</td>
-                    <td className="py-4 text-right">
-                      <button className="p-1.5 text-gray-400 hover:text-brand-orange transition-colors"><Edit2 className="w-4 h-4" /></button>
-                      <button className="p-1.5 text-gray-400 hover:text-red-500 transition-colors ml-1"><Trash2 className="w-4 h-4" /></button>
+                {isLoading ? (
+                  <tr>
+                    <td colSpan="5" className="py-8 text-center text-gray-500">
+                      <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-brand-orange" />
+                      Loading logs...
                     </td>
                   </tr>
-                ))}
+                ) : foodLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="py-8 text-center text-gray-500 italic">No food logs found. Snap a meal to get started!</td>
+                  </tr>
+                ) : (
+                  foodLogs.map((log) => (
+                    <tr key={log.id} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="py-4 font-semibold text-gray-800 flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 flex-shrink-0 flex items-center justify-center">
+                          {log.image_url ? (
+                            <img src={log.image_url} alt={log.meal_name} className="w-full h-full object-cover" />
+                          ) : (
+                            <Camera className="w-4 h-4 text-gray-400" />
+                          )}
+                        </div>
+                        {editingId === log.id ? (
+                          <input 
+                            type="text" 
+                            name="meal_name"
+                            value={editForm.meal_name} 
+                            onChange={handleEditChange}
+                            className="w-full border border-orange-200 rounded px-2 py-1 font-semibold text-gray-800 focus:outline-none focus:border-brand-orange" 
+                          />
+                        ) : (
+                          <span className="truncate max-w-[150px]">{log.meal_name || 'Unknown Meal'}</span>
+                        )}
+                      </td>
+                      <td className="py-4 text-gray-500">
+                        {new Date(log.logged_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                      </td>
+                      <td className="py-4">
+                        {editingId === log.id ? (
+                          <div className="flex items-center gap-1">
+                            <input type="number" name="calories" value={editForm.calories} onChange={handleEditChange} className="w-16 border border-orange-200 rounded px-2 py-1 text-xs font-medium focus:outline-none focus:border-brand-orange" />
+                          </div>
+                        ) : (
+                          <span className="text-brand-orange bg-orange-50 px-2 py-1 rounded font-medium text-xs">
+                            {log.calories || 0} kcal
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-4 text-gray-500 font-medium">
+                        {editingId === log.id ? (
+                          <div className="flex items-center gap-1">
+                            <input type="number" name="protein" value={editForm.protein} onChange={handleEditChange} className="w-12 border border-orange-200 rounded px-1 py-1 text-xs focus:outline-none focus:border-brand-orange" placeholder="P" />g / 
+                            <input type="number" name="carbs" value={editForm.carbs} onChange={handleEditChange} className="w-12 border border-orange-200 rounded px-1 py-1 text-xs focus:outline-none focus:border-brand-orange" placeholder="C" />g / 
+                            <input type="number" name="fat" value={editForm.fat} onChange={handleEditChange} className="w-12 border border-orange-200 rounded px-1 py-1 text-xs focus:outline-none focus:border-brand-orange" placeholder="F" />g
+                          </div>
+                        ) : (
+                          <>{log.protein || 0}g / {log.carbs || 0}g / {log.fat || 0}g</>
+                        )}
+                      </td>
+                      <td className="py-4 text-right">
+                        {editingId === log.id ? (
+                          <>
+                            <button onClick={() => handleSaveEdit(log.id)} className="px-3 py-1 bg-brand-orange text-white text-xs font-medium rounded hover:bg-brand-orange-dark transition-colors mr-2">Save</button>
+                            <button onClick={() => setEditingId(null)} className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded hover:bg-gray-200 transition-colors">Cancel</button>
+                          </>
+                        ) : (
+                          <>
+                            <button onClick={() => handleEditClick(log)} className="p-1.5 text-gray-400 hover:text-brand-orange transition-colors"><Edit2 className="w-4 h-4" /></button>
+                            <button onClick={() => handleDelete(log.id)} className="p-1.5 text-gray-400 hover:text-red-500 transition-colors ml-1"><Trash2 className="w-4 h-4" /></button>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
