@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Activity, Zap, Info } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import CustomSelect from '../components/CustomSelect';
+import CustomSlider from '../components/CustomSlider';
 
 export default function HealthForecaster() {
   const { user } = useAuth();
@@ -114,14 +116,12 @@ export default function HealthForecaster() {
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Gender</label>
-                    <select 
+                    <CustomSelect
+                      name="gender"
                       value={gender}
                       onChange={(e) => setGender(e.target.value)}
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-orange/50 transition-shadow bg-white"
-                    >
-                      <option>Male</option>
-                      <option>Female</option>
-                    </select>
+                      options={['Male', 'Female']}
+                    />
                   </div>
                 </div>
 
@@ -152,13 +152,13 @@ export default function HealthForecaster() {
                       <label className="text-sm font-semibold text-gray-700">Daily Steps</label>
                       <span className="text-sm font-bold text-brand-orange">{steps.toLocaleString()} steps</span>
                     </div>
-                    <input 
-                      type="range" 
-                      min="0" 
-                      max="20000" 
+                    <CustomSlider 
+                      min={0} 
+                      max={20000} 
                       value={steps}
                       onChange={(e) => setSteps(Number(e.target.value))}
-                      className="w-full accent-brand-orange bg-gray-200 rounded-full h-2" 
+                      colorClass="bg-brand-orange"
+                      thumbColorHex="#FF8235"
                     />
                   </div>
 
@@ -167,14 +167,14 @@ export default function HealthForecaster() {
                       <label className="text-sm font-semibold text-gray-700">Sleep Hours</label>
                       <span className="text-sm font-bold text-blue-500">{sleep} hours</span>
                     </div>
-                    <input 
-                      type="range" 
-                      min="0" 
-                      max="12" 
-                      step="0.5" 
+                    <CustomSlider 
+                      min={0} 
+                      max={12} 
+                      step={0.5} 
                       value={sleep}
                       onChange={(e) => setSleep(Number(e.target.value))}
-                      className="w-full accent-blue-500 bg-gray-200 rounded-full h-2" 
+                      colorClass="bg-blue-500"
+                      thumbColorHex="#3B82F6"
                     />
                   </div>
 
@@ -183,14 +183,14 @@ export default function HealthForecaster() {
                       <label className="text-sm font-semibold text-gray-700">Water Intake (Liters)</label>
                       <span className="text-sm font-bold text-cyan-500">{water} L</span>
                     </div>
-                    <input 
-                      type="range" 
-                      min="0" 
-                      max="6" 
-                      step="0.1" 
+                    <CustomSlider 
+                      min={0} 
+                      max={6} 
+                      step={0.1} 
                       value={water}
                       onChange={(e) => setWater(Number(e.target.value))}
-                      className="w-full accent-cyan-500 bg-gray-200 rounded-full h-2" 
+                      colorClass="bg-cyan-500"
+                      thumbColorHex="#06B6D4"
                     />
                   </div>
                   
@@ -199,14 +199,14 @@ export default function HealthForecaster() {
                       <label className="text-sm font-semibold text-gray-700">Daily Calories Consumed</label>
                       <span className="text-sm font-bold text-purple-500">{calories.toLocaleString()} kcal</span>
                     </div>
-                    <input 
-                      type="range" 
-                      min="1000" 
-                      max="4000" 
-                      step="50" 
+                    <CustomSlider 
+                      min={1000} 
+                      max={4000} 
+                      step={50} 
                       value={calories}
                       onChange={(e) => setCalories(Number(e.target.value))}
-                      className="w-full accent-purple-500 bg-gray-200 rounded-full h-2" 
+                      colorClass="bg-purple-500"
+                      thumbColorHex="#A855F7"
                     />
                   </div>
                 </div>

@@ -1,7 +1,156 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Edit2, Trash2 } from 'lucide-react';
+import api from '../lib/api';
+import { useAuth } from '../context/AuthContext';
 
 export default function History() {
+  const { user, updateProfile } = useAuth();
+  const [viewMode, setViewMode] = useState('Weekly');
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [monthOffset, setMonthOffset] = useState(0);
+  const [bmiData, setBmiData] = useState([]);
+  
+  // Widget states
+  const [weightInput, setWeightInput] = useState(user?.weight_kg || '');
+  const [heightInput, setHeightInput] = useState(user?.height_cm || '');
+  const [isSubmittingLog, setIsSubmittingLog] = useState(false);
+
+  // Expose fetch function so we can refresh after submitting
+  const fetchWeightHistory = async () => {
+    try {
+      const { data } = await api.get('/weight');
+      const history = data.data;
+      const heightM = (user?.height_cm || 170) / 100;
+      
+      const formatted = history.map(log => {
+        const w = parseFloat(log.weight_kg);
+        const bmi = parseFloat((w / (heightM * heightM)).toFixed(1));
+        const date = new Date(log.logged_at);
+        return {
+          dateStr: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          bmi
+        };
+      });
+      setBmiData(formatted);
+    } catch (err) {
+      console.error('Failed to fetch weight history', err);
+    }
+  };
+
+  useEffect(() => {
+    if (user) fetchWeightHistory();
+  }, [user]);
+
+  const handleManualLog = async (e) => {
+    e.preventDefault();
+    if (!weightInput || isNaN(weightInput) || !heightInput || isNaN(heightInput)) return;
+    setIsSubmittingLog(true);
+    try {
+      const w = Number(weightInput);
+      const h = Number(heightInput);
+      await updateProfile({ weight_kg: w, height_cm: h });
+      await api.post('/weight', { weight_kg: w });
+      await fetchWeightHistory();
+    } catch (err) {
+      console.error('Failed to log measurements', err);
+    } finally {
+      setIsSubmittingLog(false);
+    }
+  };
+
+
+  const getHeaderString = () => {
+    if (viewMode === 'Weekly') {
+      const baseDate = new Date('2023-11-18T12:00:00Z'); // Fixed Saturday base
+      baseDate.setDate(baseDate.getDate() + weekOffset * 7);
+      const startDate = new Date(baseDate);
+      startDate.setDate(startDate.getDate() - 6);
+
+      const options = { month: 'short', day: 'numeric' };
+      const endDate = new Date(baseDate);
+      const startStr = startDate.toLocaleDateString('en-US', options);
+      const endStr = endDate.toLocaleDateString('en-US', { ...options, year: 'numeric' });
+      return `${startStr} - ${endStr}`;
+    } else {
+      const baseDate = new Date(2023, 10, 1); // Nov 2023
+      baseDate.setMonth(baseDate.getMonth() + monthOffset);
+      return baseDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    }
+  };
+
+  const isWeekly = viewMode === 'Weekly';
+  
+  let daysInMonth = 30;
+  if (!isWeekly) {
+    const baseDate = new Date(2023, 10, 1);
+    baseDate.setMonth(baseDate.getMonth() + monthOffset);
+    daysInMonth = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 0).getDate();
+  }
+  
+  const dataLength = isWeekly ? 7 : daysInMonth;
+
+  // Generate slightly different data based on offset to simulate data changes
+  const generateData = (baseData) => {
+    const result = [];
+    for (let i = 0; i < dataLength; i++) {
+      const baseVal = baseData[i % baseData.length];
+      const offset = isWeekly ? weekOffset : monthOffset;
+      // Deterministic pseudo-random variation between -20 and +20
+      const variation = Math.sin(offset * 13 + i * 7) * 20;
+      result.push(Math.max(10, Math.min(100, baseVal + variation)));
+    }
+    return result;
+  };
+
+  const calData = generateData([40, 60, 55, 30, 45, 20, 80]);
+  const proData = generateData([50, 40, 65, 35, 50, 30, 85]);
+  const carData = generateData([60, 50, 45, 30, 40, 35, 60]);
+  const fatData = generateData([45, 55, 60, 40, 55, 50, 90]);
+
+  const labels = isWeekly 
+    ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    : Array.from({ length: daysInMonth }, (_, i) => ((i + 1) % 7 === 1 ? (i + 1).toString() : ''));
+    
+  const barWidthClass = isWeekly ? 'w-8' : 'w-1.5';
+  const barGapClass = isWeekly ? 'gap-3' : 'gap-1';
+  
+  const handlePrev = () => isWeekly ? setWeekOffset(prev => prev - 1) : setMonthOffset(prev => prev - 1);
+  const handleNext = () => isWeekly ? setWeekOffset(prev => prev + 1) : setMonthOffset(prev => prev + 1);
+
+  // --- Dynamic SVG Chart Logic ---
+  let svgPath = '';
+  let svgFill = '';
+  let circles = [];
+  let xLabels = [];
+
+  if (bmiData.length > 0) {
+    const bmis = bmiData.map(d => d.bmi);
+    const minBmi = Math.max(0, Math.min(...bmis) - 2);
+    const maxBmi = Math.max(...bmis) + 2;
+    const range = maxBmi - minBmi || 1;
+    const width = 1000;
+    const height = 100;
+    
+    bmiData.forEach((d, i) => {
+      const x = bmiData.length === 1 ? width / 2 : (i / (bmiData.length - 1)) * width;
+      const y = height - 10 - ((d.bmi - minBmi) / range) * (height - 20);
+      
+      if (i === 0) svgPath += `M${x},${y} `;
+      else svgPath += `L${x},${y} `;
+      
+      circles.push({ x, y, val: d.bmi });
+      xLabels.push({ x, label: d.dateStr });
+    });
+
+    if (bmiData.length === 1) {
+       svgPath = `M0,${circles[0].y} L${width},${circles[0].y}`;
+       svgFill = `M0,${height} L0,${circles[0].y} L${width},${circles[0].y} L${width},${height} Z`;
+    } else {
+       svgFill = `${svgPath} L${width},${height} L0,${height} Z`;
+    }
+  }
+
+
   return (
     <main className="flex-1 p-8 min-h-screen">
       <div className="max-w-5xl">
@@ -16,14 +165,24 @@ export default function History() {
           <div className="flex justify-between items-center mb-8">
             <h2 className="text-xl font-bold text-gray-900">Health Development</h2>
             <div className="flex items-center gap-6">
-              <div className="flex items-center gap-3 text-brand-orange font-medium">
-                <button className="p-1 hover:bg-orange-50 rounded"><ChevronLeft className="w-5 h-5" /></button>
-                <span>Nov 12 - Nov 18, 2023</span>
-                <button className="p-1 hover:bg-orange-50 rounded"><ChevronRight className="w-5 h-5" /></button>
+              <div className="flex items-center gap-3 text-brand-orange font-medium w-64 justify-center">
+                <button onClick={handlePrev} className="p-1 hover:bg-orange-50 rounded transition-colors"><ChevronLeft className="w-5 h-5" /></button>
+                <span className="w-40 text-center select-none">{getHeaderString()}</span>
+                <button onClick={handleNext} className="p-1 hover:bg-orange-50 rounded transition-colors"><ChevronRight className="w-5 h-5" /></button>
               </div>
               <div className="flex bg-gray-100 p-1 rounded-full">
-                <button className="px-4 py-1.5 bg-white shadow-sm rounded-full text-sm font-medium text-brand-orange">Weekly</button>
-                <button className="px-4 py-1.5 rounded-full text-sm font-medium text-gray-500 hover:text-gray-700">Monthly</button>
+                <button 
+                  onClick={() => setViewMode('Weekly')}
+                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${isWeekly ? 'bg-white shadow-sm text-brand-orange' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  Weekly
+                </button>
+                <button 
+                  onClick={() => setViewMode('Monthly')}
+                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${!isWeekly ? 'bg-white shadow-sm text-brand-orange' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  Monthly
+                </button>
               </div>
             </div>
           </div>
@@ -44,18 +203,17 @@ export default function History() {
                   Goal: <span className="text-green-500">2,200 Kcal</span> &nbsp;&nbsp; Avg: <span className="text-gray-900 font-bold">1,840 Kcal</span>
                 </div>
               </div>
-              <div className="relative h-40 flex items-end justify-between px-2">
+              <div className="relative h-40 flex items-end justify-between pl-2 pr-12">
                 {/* Goal Line */}
                 <div className="absolute w-full border-t border-dashed border-green-400 top-10 left-0 z-0"></div>
                 <div className="absolute top-4 right-0 text-[10px] text-gray-400 font-bold uppercase tracking-wider">KCAL</div>
                 
-                {/* Bars */}
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => (
-                  <div key={day} className="flex flex-col items-center gap-3 z-10 w-8">
+                {labels.map((label, i) => (
+                  <div key={'cal' + i} className={`flex flex-col items-center ${barGapClass} z-10 ${barWidthClass}`}>
                     <div className="w-full h-32 bg-gray-100 rounded-full relative overflow-hidden">
-                      <div className={`absolute bottom-0 w-full rounded-full transition-all duration-1000 ${i === 6 ? 'bg-brand-orange' : 'bg-gray-200'}`} style={{ height: `${[40, 60, 55, 30, 45, 20, 80][i]}%` }}></div>
+                      <div className={`absolute bottom-0 w-full rounded-full transition-all duration-700 ease-out ${(isWeekly && i === 6) || (!isWeekly && i === daysInMonth - 1) ? 'bg-brand-orange' : 'bg-gray-200'}`} style={{ height: `${calData[i]}%` }}></div>
                     </div>
-                    <span className="text-xs text-gray-400">{day}</span>
+                    <span className={`text-gray-400 ${isWeekly ? 'text-xs' : 'text-[10px]'}`}>{label}</span>
                   </div>
                 ))}
               </div>
@@ -74,16 +232,16 @@ export default function History() {
                   Goal: <span className="text-green-500">160g</span> &nbsp;&nbsp; Avg: <span className="text-gray-900 font-bold">142g</span>
                 </div>
               </div>
-              <div className="relative h-40 flex items-end justify-between px-2">
+              <div className="relative h-40 flex items-end justify-between pl-2 pr-12">
                 <div className="absolute w-full border-t border-dashed border-green-400 top-12 left-0 z-0"></div>
                 <div className="absolute top-4 right-0 text-[10px] text-gray-400 font-bold uppercase tracking-wider">GRAMS</div>
                 
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => (
-                  <div key={day} className="flex flex-col items-center gap-3 z-10 w-8">
+                {labels.map((label, i) => (
+                  <div key={'pro' + i} className={`flex flex-col items-center ${barGapClass} z-10 ${barWidthClass}`}>
                     <div className="w-full h-32 bg-gray-100 rounded-full relative overflow-hidden">
-                      <div className={`absolute bottom-0 w-full rounded-full transition-all duration-1000 ${i === 6 ? 'bg-blue-500' : 'bg-gray-200'}`} style={{ height: `${[50, 40, 65, 35, 50, 30, 85][i]}%` }}></div>
+                      <div className={`absolute bottom-0 w-full rounded-full transition-all duration-700 ease-out ${(isWeekly && i === 6) || (!isWeekly && i === daysInMonth - 1) ? 'bg-blue-500' : 'bg-gray-200'}`} style={{ height: `${proData[i]}%` }}></div>
                     </div>
-                    <span className="text-xs text-gray-400">{day}</span>
+                    <span className={`text-gray-400 ${isWeekly ? 'text-xs' : 'text-[10px]'}`}>{label}</span>
                   </div>
                 ))}
               </div>
@@ -102,16 +260,16 @@ export default function History() {
                   Goal: <span className="text-green-500">250g</span> &nbsp;&nbsp; Avg: <span className="text-gray-900 font-bold">210g</span>
                 </div>
               </div>
-              <div className="relative h-40 flex items-end justify-between px-2">
+              <div className="relative h-40 flex items-end justify-between pl-2 pr-12">
                 <div className="absolute w-full border-t border-dashed border-green-400 top-16 left-0 z-0"></div>
                 <div className="absolute top-4 right-0 text-[10px] text-gray-400 font-bold uppercase tracking-wider">GRAMS</div>
                 
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => (
-                  <div key={day} className="flex flex-col items-center gap-3 z-10 w-8">
+                {labels.map((label, i) => (
+                  <div key={'car' + i} className={`flex flex-col items-center ${barGapClass} z-10 ${barWidthClass}`}>
                     <div className="w-full h-32 bg-gray-100 rounded-full relative overflow-hidden">
-                      <div className={`absolute bottom-0 w-full rounded-full transition-all duration-1000 ${i === 6 ? 'bg-yellow-500' : 'bg-gray-200'}`} style={{ height: `${[60, 50, 45, 30, 40, 35, 60][i]}%` }}></div>
+                      <div className={`absolute bottom-0 w-full rounded-full transition-all duration-700 ease-out ${(isWeekly && i === 6) || (!isWeekly && i === daysInMonth - 1) ? 'bg-yellow-500' : 'bg-gray-200'}`} style={{ height: `${carData[i]}%` }}></div>
                     </div>
-                    <span className="text-xs text-gray-400">{day}</span>
+                    <span className={`text-gray-400 ${isWeekly ? 'text-xs' : 'text-[10px]'}`}>{label}</span>
                   </div>
                 ))}
               </div>
@@ -130,16 +288,16 @@ export default function History() {
                   Goal: <span className="text-green-500">70g</span> &nbsp;&nbsp; Avg: <span className="text-gray-900 font-bold">78g</span>
                 </div>
               </div>
-              <div className="relative h-40 flex items-end justify-between px-2">
+              <div className="relative h-40 flex items-end justify-between pl-2 pr-12">
                 <div className="absolute w-full border-t border-dashed border-green-400 top-10 left-0 z-0"></div>
                 <div className="absolute top-4 right-0 text-[10px] text-gray-400 font-bold uppercase tracking-wider">GRAMS</div>
                 
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => (
-                  <div key={day} className="flex flex-col items-center gap-3 z-10 w-8">
+                {labels.map((label, i) => (
+                  <div key={'fat' + i} className={`flex flex-col items-center ${barGapClass} z-10 ${barWidthClass}`}>
                     <div className="w-full h-32 bg-gray-100 rounded-full relative overflow-hidden">
-                      <div className={`absolute bottom-0 w-full rounded-full transition-all duration-1000 ${i === 6 ? 'bg-purple-500' : 'bg-gray-200'}`} style={{ height: `${[45, 55, 60, 40, 55, 50, 90][i]}%` }}></div>
+                      <div className={`absolute bottom-0 w-full rounded-full transition-all duration-700 ease-out ${(isWeekly && i === 6) || (!isWeekly && i === daysInMonth - 1) ? 'bg-purple-500' : 'bg-gray-200'}`} style={{ height: `${fatData[i]}%` }}></div>
                     </div>
-                    <span className="text-xs text-gray-400">{day}</span>
+                    <span className={`text-gray-400 ${isWeekly ? 'text-xs' : 'text-[10px]'}`}>{label}</span>
                   </div>
                 ))}
               </div>
@@ -158,33 +316,94 @@ export default function History() {
               </div>
               <div className="flex gap-4 text-xs font-medium">
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Current: <span className="text-gray-900 font-bold">23.4</span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Current: <span className="text-gray-900 font-bold">{bmiData.length > 0 ? bmiData[bmiData.length - 1].bmi : (user?.weight_kg ? parseFloat((user.weight_kg / Math.pow((user.height_cm || 170) / 100, 2)).toFixed(1)) : '--')}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-200"></span> Normal Range: <span className="text-gray-900 font-bold">18.5 - 24.9</span>
                 </div>
               </div>
             </div>
-            <div className="h-24 w-full relative">
-              {/* Fake SVG Line chart for BMI */}
-              <div className="absolute inset-0 bg-gradient-to-b from-emerald-100/50 to-transparent flex items-end pb-0">
-                <svg viewBox="0 0 1000 100" className="w-full h-full preserve-3d" preserveAspectRatio="none">
-                  <path d="M0,80 Q200,85 350,75 T600,65 T1000,50 L1000,100 L0,100 Z" fill="rgba(16, 185, 129, 0.1)" />
-                  <path d="M0,80 Q200,85 350,75 T600,65 T1000,50" fill="none" stroke="#10B981" strokeWidth="3" />
-                  <circle cx="350" cy="75" r="4" fill="#fff" stroke="#10B981" strokeWidth="2" />
-                  <circle cx="600" cy="65" r="4" fill="#fff" stroke="#10B981" strokeWidth="2" />
-                  <circle cx="1000" cy="50" r="4" fill="#fff" stroke="#10B981" strokeWidth="2" />
-                </svg>
-              </div>
-              <div className="absolute bottom-[-24px] w-full flex justify-between px-2 text-[10px] text-gray-400 font-bold uppercase">
-                <span>Sep</span>
-                <span>Oct</span>
-                <span>Nov</span>
-                <span>Dec</span>
-                <span>Jan</span>
-                <span>Feb</span>
-              </div>
+            <div className="h-48 w-full -ml-4 mt-4">
+              {bmiData.length > 0 ? (
+                <div className="h-full w-full relative flex flex-col justify-end">
+                  <div className="relative flex-1 w-full h-full block">
+                    <svg viewBox="0 0 1000 100" className="w-full h-full absolute inset-0 preserve-3d" preserveAspectRatio="none">
+                      <path d={svgFill} fill="rgba(16, 185, 129, 0.1)" />
+                      {bmiData.length > 0 && <path d={svgPath} fill="none" stroke="#10B981" strokeWidth="3" strokeDasharray={bmiData.length === 1 ? "15,15" : "none"} />}
+                    </svg>
+                    <div className="absolute inset-0 w-full h-full pointer-events-none">
+                      {circles.map((c, i) => (
+                        <div 
+                          key={'point'+i} 
+                          className="absolute group cursor-pointer pointer-events-auto"
+                          style={{ 
+                            left: `${(c.x / 1000) * 100}%`, 
+                            top: `${(c.y / 100) * 100}%`,
+                            transform: 'translate(-50%, -50%)'
+                          }}
+                        >
+                          <div className="w-2 h-2 group-hover:w-3 group-hover:h-3 bg-white border-[2px] border-emerald-500 rounded-full transition-all shadow-sm" />
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 opacity-0 group-hover:opacity-100 transition-opacity text-emerald-600 font-bold text-xs bg-white px-2 py-0.5 rounded shadow-sm border border-emerald-100 pointer-events-none whitespace-nowrap">
+                            {c.val}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="w-full flex justify-between px-2 text-[10px] text-gray-400 font-bold uppercase mt-2">
+                    {xLabels.map((lbl, i) => (
+                      <span key={'lbl'+i}>{lbl.label}</span>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="h-full flex items-center justify-center text-gray-400 text-sm border-2 border-dashed border-gray-100 rounded-2xl ml-4">
+                  No weight history available. Log your weight to see your BMI trend.
+                </div>
+              )}
             </div>
+
+            {/* Log Data Widget */}
+            <div className="mt-8 bg-emerald-50 rounded-2xl p-5 border border-emerald-100 flex items-center justify-between">
+              <div>
+                <h4 className="font-bold text-emerald-900 text-sm">Update Measurements</h4>
+                <p className="text-xs text-emerald-700/70 mt-1">Keep your BMI accurate by logging your latest data.</p>
+              </div>
+              <form onSubmit={handleManualLog} className="flex items-center gap-3">
+                <div className="relative">
+                  <input 
+                    type="number" 
+                    step="0.1" 
+                    value={weightInput} 
+                    onChange={e => setWeightInput(e.target.value)} 
+                    placeholder="Weight" 
+                    className="w-24 px-4 py-2 bg-white border border-emerald-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 text-gray-900 text-sm" 
+                    required 
+                  />
+                  <span className="absolute right-3 top-2.5 text-[10px] text-gray-400 font-bold uppercase mt-0.5">kg</span>
+                </div>
+                <div className="relative">
+                  <input 
+                    type="number" 
+                    step="0.1" 
+                    value={heightInput} 
+                    onChange={e => setHeightInput(e.target.value)} 
+                    placeholder="Height" 
+                    className="w-24 px-4 py-2 bg-white border border-emerald-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 text-gray-900 text-sm" 
+                    required 
+                  />
+                  <span className="absolute right-3 top-2.5 text-[10px] text-gray-400 font-bold uppercase mt-0.5">cm</span>
+                </div>
+                <button 
+                  type="submit" 
+                  disabled={isSubmittingLog}
+                  className="bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white px-5 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-2"
+                >
+                  {isSubmittingLog ? 'Saving...' : 'Save Log'}
+                </button>
+              </form>
+            </div>
+
           </div>
 
           <hr className="border-gray-100 my-8" />

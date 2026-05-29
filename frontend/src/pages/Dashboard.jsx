@@ -1,15 +1,96 @@
-import React from 'react';
-import { Activity, Droplet, Zap, BatteryCharging, Utensils, PersonStanding, BellDot } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Activity, Droplet, Zap, BatteryCharging, Utensils, PersonStanding, BellDot, Edit, Camera } from 'lucide-react';
+import api from '../lib/api';
+import { useAuth } from '../context/AuthContext';
 
 export default function Dashboard() {
+  const { user, updateProfile } = useAuth();
+  const [showWeightReminder, setShowWeightReminder] = useState(false);
+  const [weightInput, setWeightInput] = useState('');
+  const [isSubmittingWeight, setIsSubmittingWeight] = useState(false);
+
+  useEffect(() => {
+    const checkWeightLog = async () => {
+      try {
+        const { data } = await api.get('/weight');
+        const history = data.data;
+        if (!history || history.length === 0) {
+          setShowWeightReminder(true);
+        } else {
+          const latestLog = history[history.length - 1];
+          const logDate = new Date(latestLog.logged_at);
+          const now = new Date();
+          const diffTime = Math.abs(now - logDate);
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          if (diffDays > 7) {
+            setShowWeightReminder(true);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch weight history', err);
+      }
+    };
+    checkWeightLog();
+  }, []);
+
+  const handleWeightSubmit = async (e) => {
+    e.preventDefault();
+    if (!weightInput || isNaN(weightInput)) return;
+    setIsSubmittingWeight(true);
+    try {
+      await api.post('/weight', { weight_kg: Number(weightInput) });
+      await updateProfile({ weight_kg: Number(weightInput) });
+      setShowWeightReminder(false);
+    } catch (err) {
+      console.error('Failed to log weight', err);
+    } finally {
+      setIsSubmittingWeight(false);
+    }
+  };
+
   return (
     <main className="flex-1 p-8">
 
       <div className="max-w-4xl">
         <header className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-1">Good morning, Alex!</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-1">Good morning, {user?.name?.split(' ')[0] || 'Alex'}!</h1>
           <p className="text-gray-500">Here's your health landscape for today.</p>
         </header>
+
+        {showWeightReminder && (
+          <section className="bg-brand-orange-light rounded-2xl p-6 border border-brand-orange mb-6 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-brand-orange shadow-sm">
+                <Edit className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Time for your Weekly Check-in!</h3>
+                <p className="text-brand-orange text-sm font-medium">Log your weight to keep your BMI chart up-to-date.</p>
+              </div>
+            </div>
+            <form onSubmit={handleWeightSubmit} className="flex items-center gap-3">
+              <div className="relative">
+                <input 
+                  type="number" 
+                  step="0.1"
+                  required
+                  placeholder={user?.weight_kg || 'e.g. 65'}
+                  value={weightInput}
+                  onChange={(e) => setWeightInput(e.target.value)}
+                  className="w-24 px-4 py-2 bg-white border border-orange-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-orange/50 text-gray-900"
+                />
+                <span className="absolute right-3 top-2.5 text-xs text-gray-400 font-bold">KG</span>
+              </div>
+              <button 
+                type="submit" 
+                disabled={isSubmittingWeight}
+                className="bg-brand-orange hover:bg-brand-orange-dark text-white px-5 py-2 rounded-xl font-medium transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50"
+              >
+                {isSubmittingWeight ? 'Saving...' : 'Update'}
+              </button>
+            </form>
+          </section>
+        )}
 
         {/* Calories Intake */}
         <section className="bg-white rounded-2xl p-6 shadow-sm border border-orange-50 mb-6">
@@ -189,50 +270,55 @@ export default function Dashboard() {
         </section>
 
         {/* Recently Logged */}
-        <section className="bg-white rounded-2xl p-6 shadow-sm border border-orange-50 relative pb-16">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Recently Logged</h2>
+        <section className="bg-white rounded-2xl p-6 shadow-sm border border-orange-50">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold text-gray-900">Recently Logged</h2>
+            <button className="bg-brand-orange hover:bg-brand-orange-dark text-white font-medium py-2 px-5 rounded-full transition-colors shadow-lg shadow-orange-200 text-sm flex items-center gap-2 active:scale-95">
+              <Camera className="w-4 h-4" /> Scan Meal
+            </button>
+          </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="rounded-2xl overflow-hidden border border-gray-100 relative group">
-              <div className="h-32 bg-gray-200 w-full overflow-hidden">
+          <div className="grid grid-cols-2 gap-5">
+            <div className="rounded-2xl overflow-hidden border border-gray-100 group bg-white shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+              <div className="h-36 bg-gray-200 w-full overflow-hidden">
                 <img src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Grilled Chicken Salad" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
               </div>
-              <div className="p-4 bg-gradient-to-t from-white via-white to-transparent absolute bottom-0 w-full pt-12">
-                <div className="flex justify-between items-baseline mb-1">
-                  <h3 className="font-semibold text-gray-900">Grilled Chicken Salad</h3>
-                  <span className="text-brand-orange text-xs font-medium">12.30 pm</span>
+              <div className="p-4">
+                <div className="flex justify-between items-baseline mb-2">
+                  <h3 className="font-semibold text-gray-900 truncate pr-2">Grilled Chicken Salad</h3>
+                  <span className="text-gray-400 text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">12:30 PM</span>
                 </div>
-                <div className="flex gap-3 text-xs text-gray-500">
-                  <span className="font-medium text-gray-700">340 kcal</span>
-                  <span>P: 42g</span>
-                  <span>C: 12g</span>
-                  <span>F: 14g</span>
+                <div className="flex items-center gap-3 text-xs">
+                  <span className="font-bold text-brand-orange bg-orange-50 px-2.5 py-1 rounded-md">340 kcal</span>
+                  <div className="flex gap-2.5 text-gray-500 font-medium">
+                    <span>P:42g</span>
+                    <span>C:12g</span>
+                    <span>F:14g</span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="rounded-2xl overflow-hidden border border-gray-100 relative group">
-              <div className="h-32 bg-gray-200 w-full overflow-hidden">
+            <div className="rounded-2xl overflow-hidden border border-gray-100 group bg-white shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+              <div className="h-36 bg-gray-200 w-full overflow-hidden">
                 <img src="https://images.unsplash.com/photo-1494597564530-871f2b93ac55?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Acai Breakfast Bowl" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
               </div>
-              <div className="p-4 bg-gradient-to-t from-white via-white to-transparent absolute bottom-0 w-full pt-12">
-                <div className="flex justify-between items-baseline mb-1">
-                  <h3 className="font-semibold text-gray-900">Acai Breakfast Bowl</h3>
-                  <span className="text-brand-orange text-xs font-medium">12.23 pm</span>
+              <div className="p-4">
+                <div className="flex justify-between items-baseline mb-2">
+                  <h3 className="font-semibold text-gray-900 truncate pr-2">Acai Breakfast Bowl</h3>
+                  <span className="text-gray-400 text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">12:23 PM</span>
                 </div>
-                <div className="flex gap-3 text-xs text-gray-500">
-                  <span className="font-medium text-gray-700">410 kcal</span>
-                  <span>P: 8g</span>
-                  <span>C: 65g</span>
-                  <span>F: 12g</span>
+                <div className="flex items-center gap-3 text-xs">
+                  <span className="font-bold text-brand-orange bg-orange-50 px-2.5 py-1 rounded-md">410 kcal</span>
+                  <div className="flex gap-2.5 text-gray-500 font-medium">
+                    <span>P:8g</span>
+                    <span>C:65g</span>
+                    <span>F:12g</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-
-          <button className="absolute bottom-6 right-6 bg-brand-orange hover:bg-brand-orange-dark text-white font-medium py-2 px-6 rounded-full transition-colors shadow-lg shadow-orange-200">
-            Scan meal
-          </button>
         </section>
 
       </div>

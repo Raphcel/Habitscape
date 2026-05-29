@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import CustomSelect from '../components/CustomSelect';
 
 export default function Onboarding() {
   const { user, updateProfile, loading, error, setError } = useAuth();
@@ -58,16 +59,12 @@ export default function Onboarding() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Gender</label>
-              <select 
+              <CustomSelect
                 name="gender"
                 value={formData.gender}
                 onChange={handleChange}
-                className="w-full px-4 py-3.5 rounded-xl border border-gray-200 focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all text-sm bg-white"
-                required
-              >
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-              </select>
+                options={['Male', 'Female']}
+              />
             </div>
           </div>
 

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import CustomSelect from '../components/CustomSelect';
 
 export default function Profile() {
   const { user, updateProfile, loading, error, setError } = useAuth();
@@ -79,16 +80,12 @@ export default function Profile() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Gender</label>
-                <select 
+                <CustomSelect
                   name="gender"
                   value={formData.gender}
                   onChange={handleChange}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-orange/50 transition-shadow bg-white"
-                  required
-                >
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                </select>
+                  options={['Male', 'Female']}
+                />
               </div>
             </div>
 
