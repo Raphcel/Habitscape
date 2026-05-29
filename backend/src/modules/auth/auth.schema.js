@@ -33,6 +33,10 @@ const updateProfileSchema = z.object({
   protein_goal_g: z.coerce.number().int().positive().optional(),
   carbs_goal_g:   z.coerce.number().int().positive().optional(),
   fat_goal_g:     z.coerce.number().int().positive().optional(),
+  height_cm:      z.coerce.number().positive().optional(),
+  weight_kg:      z.coerce.number().positive().optional(),
+  age:            z.coerce.number().int().positive().optional(),
+  gender:         z.string().optional(),
 });
 
 module.exports = { registerSchema, loginSchema, updateProfileSchema };

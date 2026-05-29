@@ -1,11 +1,23 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Camera, LineChart, Clock, Bell, Settings, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
+import { LayoutDashboard, Camera, LineChart, Clock, Bell, Settings, ChevronLeft, ChevronRight, LogOut, MoreVertical, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function Sidebar({ isOpen, setIsOpen }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setShowUserMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const navItems = [
     { id: 'dashboard',  label: 'Dashboard',         icon: LayoutDashboard },
@@ -76,40 +88,58 @@ export default function Sidebar({ isOpen, setIsOpen }) {
             <Bell className="w-5 h-5 shrink-0 text-gray-700" />
             {isOpen && <span className="text-[16px] whitespace-nowrap">Notifications</span>}
           </a>
-          <a href="#" title={!isOpen ? 'Settings' : ''} className={`flex items-center ${isOpen ? 'gap-3 px-3' : 'justify-center px-0'} py-2.5 text-text-main hover:bg-gray-50 rounded-lg transition-colors`}>
-            <Settings className="w-5 h-5 shrink-0 text-gray-700" />
-            {isOpen && <span className="text-[16px] whitespace-nowrap">Settings</span>}
-          </a>
-
-          {/* Logout */}
-          <button
-            onClick={handleLogout}
-            title={!isOpen ? 'Log Out' : ''}
-            className={`flex items-center ${isOpen ? 'gap-3 px-3' : 'justify-center px-0'} py-2.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors w-full text-left`}
-          >
-            <LogOut className="w-5 h-5 shrink-0" />
-            {isOpen && <span className="text-[16px] whitespace-nowrap">Log Out</span>}
-          </button>
-
-          {/* User info */}
-          <div
-            className={`flex items-center ${isOpen ? 'gap-3 px-3' : 'justify-center px-0'} py-2.5 mt-1`}
-            title={!isOpen ? user?.name ?? 'User' : ''}
-          >
-            {/* Initials avatar — no external request needed */}
-            <div className="w-8 h-8 rounded-full bg-brand-orange flex items-center justify-center shrink-0">
-              <span className="text-white text-xs font-bold">{initials}</span>
-            </div>
-            {isOpen && (
-              <div className="overflow-hidden">
-                <p className="text-[15px] text-text-main font-medium whitespace-nowrap overflow-hidden text-ellipsis">
-                  {user?.name ?? 'User'}
-                </p>
-                <p className="text-[12px] text-gray-400 whitespace-nowrap overflow-hidden text-ellipsis">
-                  {user?.email ?? ''}
-                </p>
+          {/* User info & Menu */}
+          <div className="relative mt-2" ref={menuRef}>
+            {/* The Popup Menu */}
+            {showUserMenu && (
+              <div 
+                className={`absolute bottom-full mb-2 ${isOpen ? 'left-0 w-full' : 'left-14 w-48'} bg-white border border-gray-100 rounded-xl shadow-lg py-2 z-50 animate-in fade-in zoom-in-95 duration-200`}
+              >
+                <NavLink 
+                  to="/app/profile" 
+                  onClick={() => setShowUserMenu(false)}
+                  className="flex items-center gap-3 px-4 py-2.5 text-text-main hover:bg-gray-50 transition-colors w-full"
+                >
+                  <User className="w-4 h-4 shrink-0 text-gray-600" />
+                  <span className="text-sm font-medium">Profile</span>
+                </NavLink>
+                <div className="h-px bg-gray-100 my-1 w-full"></div>
+                <button
+                  onClick={() => {
+                    setShowUserMenu(false);
+                    handleLogout();
+                  }}
+                  className="flex items-center gap-3 px-4 py-2.5 text-red-600 hover:bg-red-50 transition-colors w-full text-left"
+                >
+                  <LogOut className="w-4 h-4 shrink-0" />
+                  <span className="text-sm font-medium">Log Out</span>
+                </button>
               </div>
             )}
+
+            {/* Toggle Button */}
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className={`w-full flex items-center ${isOpen ? 'justify-between px-3' : 'justify-center px-0'} py-2.5 hover:bg-gray-50 rounded-xl transition-colors`}
+              title={!isOpen ? user?.name ?? 'User Menu' : ''}
+            >
+              <div className="flex items-center gap-3 overflow-hidden">
+                <div className="w-9 h-9 rounded-full bg-brand-orange flex items-center justify-center shrink-0 shadow-sm">
+                  <span className="text-white text-xs font-bold">{initials}</span>
+                </div>
+                {isOpen && (
+                  <div className="overflow-hidden text-left">
+                    <p className="text-[14px] text-text-main font-semibold whitespace-nowrap overflow-hidden text-ellipsis">
+                      {user?.name ?? 'User'}
+                    </p>
+                    <p className="text-[12px] text-gray-400 whitespace-nowrap overflow-hidden text-ellipsis">
+                      {user?.email ?? ''}
+                    </p>
+                  </div>
+                )}
+              </div>
+              {isOpen && <MoreVertical className="w-4 h-4 text-gray-400 shrink-0" />}
+            </button>
           </div>
         </div>
       </div>

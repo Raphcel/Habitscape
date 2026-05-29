@@ -18,6 +18,10 @@ CREATE TABLE IF NOT EXISTS users (
   protein_goal_g   INT          NOT NULL DEFAULT 150,
   carbs_goal_g     INT          NOT NULL DEFAULT 250,
   fat_goal_g       INT          NOT NULL DEFAULT 70,
+  height_cm        NUMERIC(5,2),
+  weight_kg        NUMERIC(5,2),
+  age              INT,
+  gender           VARCHAR(20),
   created_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
   updated_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );

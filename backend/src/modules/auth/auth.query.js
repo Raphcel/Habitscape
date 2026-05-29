@@ -19,7 +19,7 @@ const findByEmail = async (email) => {
 const findById = async (id) => {
   const result = await query(
     `SELECT id, name, email, calorie_goal, protein_goal_g, carbs_goal_g,
-            fat_goal_g, created_at, updated_at
+            fat_goal_g, height_cm, weight_kg, age, gender, created_at, updated_at
      FROM users
      WHERE id = $1
      LIMIT 1`,
@@ -36,7 +36,7 @@ const createUser = async ({ name, email, passwordHash }) => {
     `INSERT INTO users (name, email, password_hash)
      VALUES ($1, $2, $3)
      RETURNING id, name, email, calorie_goal, protein_goal_g,
-               carbs_goal_g, fat_goal_g, created_at, updated_at`,
+               carbs_goal_g, fat_goal_g, height_cm, weight_kg, age, gender, created_at, updated_at`,
     [name, email, passwordHash]
   );
   return result.rows[0];
@@ -47,7 +47,7 @@ const createUser = async ({ name, email, passwordHash }) => {
  * Only updates columns that are explicitly provided.
  */
 const updateUser = async (id, fields) => {
-  const allowed = ['name', 'calorie_goal', 'protein_goal_g', 'carbs_goal_g', 'fat_goal_g'];
+  const allowed = ['name', 'calorie_goal', 'protein_goal_g', 'carbs_goal_g', 'fat_goal_g', 'height_cm', 'weight_kg', 'age', 'gender'];
   const sets = [];
   const values = [];
   let idx = 1;
@@ -67,7 +67,7 @@ const updateUser = async (id, fields) => {
     `UPDATE users SET ${sets.join(', ')}
      WHERE id = $${idx}
      RETURNING id, name, email, calorie_goal, protein_goal_g,
-               carbs_goal_g, fat_goal_g, created_at, updated_at`,
+               carbs_goal_g, fat_goal_g, height_cm, weight_kg, age, gender, created_at, updated_at`,
     values
   );
   return result.rows[0] ?? null;

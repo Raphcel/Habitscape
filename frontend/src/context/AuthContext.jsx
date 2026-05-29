@@ -61,8 +61,26 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const updateProfile = async (dataPayload) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data } = await api.patch('/auth/me', dataPayload);
+      const updatedUser = data.data.user;
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      setUser(updatedUser);
+      return { success: true };
+    } catch (err) {
+      const message = err.response?.data?.message || 'Update failed. Please try again.';
+      setError(message);
+      return { success: false, message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, error, login, register, logout, setError }}>
+    <AuthContext.Provider value={{ user, loading, error, login, register, logout, updateProfile, setError }}>
       {children}
     </AuthContext.Provider>
   );
