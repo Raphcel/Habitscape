@@ -17,7 +17,7 @@ const saveFoodLogSchema = z.object({
   fat: z
     .number({ invalid_type_error: 'fat must be a number' })
     .min(0),
-  image_url: z.string().url('image_url must be a valid URL').optional().or(z.literal('')),
+  image_url: z.string().max(2048).optional().nullable().or(z.literal('')),
   is_manual_override: z.boolean().optional().default(false),
   logged_at: z
     .string()

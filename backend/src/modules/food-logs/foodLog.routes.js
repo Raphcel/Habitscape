@@ -4,7 +4,7 @@ const rateLimit = require('express-rate-limit');
 const foodLogController = require('./foodLog.controller');
 const { authenticate } = require('../../middleware/auth.middleware');
 const { validate } = require('../../middleware/validate.middleware');
-const { uploadImage } = require('../../middleware/upload.middleware');
+const { uploadImageMemory } = require('../../middleware/upload.middleware');
 const { saveFoodLogSchema, updateFoodLogSchema } = require('./foodLog.schema');
 
 const router = Router();
@@ -31,7 +31,7 @@ const analyzeLimiter = rateLimit({
  * @swagger
  * /food-logs/analyze:
  *   post:
- *     summary: Analyze a food image and save an initial log to the DB
+ *     summary: Analyze a food image and return an unsaved draft
  *     tags: [FoodLogs]
  *     security:
  *       - bearerAuth: []
@@ -49,7 +49,7 @@ const analyzeLimiter = rateLimit({
  *                 description: JPEG or PNG image, max 5 MB
  *     responses:
  *       200:
- *         description: Nutrition analysis result (and DB log)
+ *         description: Nutrition analysis draft. No food log is saved until POST /food-logs.
  *         content:
  *           application/json:
  *             schema:
@@ -60,9 +60,6 @@ const analyzeLimiter = rateLimit({
  *                     data:
  *                       type: object
  *                       properties:
- *                         id:
- *                           type: string
- *                           example: 123e4567-e89b-12d3-a456-426614174000
  *                         meal_name:
  *                           type: string
  *                           example: Nasi Goreng
@@ -82,8 +79,14 @@ const analyzeLimiter = rateLimit({
  *                           type: number
  *                           example: 0.91
  *                         image_url:
+ *                           nullable: true
+ *                           example: null
+ *                         ai_summary:
  *                           type: string
- *                           example: /uploads/food-1716000000000-123456789.jpg
+ *                         detected_foods:
+ *                           type: array
+ *                           items:
+ *                             type: object
  *       400:
  *         description: No image provided or invalid file type/size
  *       401:
@@ -97,7 +100,7 @@ router.post(
   '/analyze',
   authenticate,
   analyzeLimiter,
-  uploadImage,
+  uploadImageMemory,
   foodLogController.analyzeFood
 );
 

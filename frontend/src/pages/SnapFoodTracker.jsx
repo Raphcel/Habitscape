@@ -9,6 +9,8 @@ export default function SnapFoodTracker() {
   const [logData, setLogData] = useState(null);
   const [error, setError] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
+  const [hasManualOverride, setHasManualOverride] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
   
   // Editing state
   const [isEditing, setIsEditing] = useState(false);
@@ -41,23 +43,19 @@ export default function SnapFoodTracker() {
       const response = await api.post('/food-logs/analyze', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      // Backend now saves it and returns the updated log
-      const newLog = response.data.data;
-      setLogData(newLog);
+      const draftLog = response.data.data;
+      setLogData(draftLog);
       setEditForm({
-        meal_name: newLog.meal_name || '',
-        calories: newLog.calories || 0,
-        protein: newLog.protein || 0,
-        carbs: newLog.carbs || 0,
-        fat: newLog.fat || 0,
+        meal_name: draftLog.meal_name || '',
+        calories: draftLog.calories || 0,
+        protein: draftLog.protein || 0,
+        carbs: draftLog.carbs || 0,
+        fat: draftLog.fat || 0,
       });
-      // Use the server's image URL if available
-      if (newLog.image_url) {
-        setPreviewUrl(newLog.image_url);
-      }
+      setHasManualOverride(false);
     } catch (err) {
       console.error(err);
-      setError(err.response?.data?.message || 'Failed to analyze image. It has been saved to your logs.');
+      setError(err.response?.data?.message || 'Failed to analyze image. Please try again.');
     } finally {
       setIsAnalyzing(false);
     }
@@ -82,37 +80,44 @@ export default function SnapFoodTracker() {
       ...prev,
       [name]: name === 'meal_name' ? value : (value === '' ? '' : Number(value))
     }));
+    setHasManualOverride(true);
   };
 
-  const saveEdits = async () => {
-    if (!logData?.id) return;
+  const saveEdits = () => {
     setIsSavingEdit(true);
+    setLogData(prev => ({
+      ...prev,
+      ...editForm,
+      is_manual_override: hasManualOverride,
+    }));
+    setIsEditing(false);
+    setIsSavingEdit(false);
+  };
+
+  const handleSave = async () => {
+    const source = isEditing ? editForm : logData;
+    if (!source) return;
+
+    setIsConfirming(true);
     try {
-      const res = await api.patch(`/food-logs/${logData.id}`, editForm);
-      setLogData(res.data.data.foodLog || res.data.data);
-      setIsEditing(false);
+      await api.post('/food-logs', {
+        meal_name: source.meal_name,
+        calories: Number(source.calories || 0),
+        protein: Number(source.protein || 0),
+        carbs: Number(source.carbs || 0),
+        fat: Number(source.fat || 0),
+        is_manual_override: hasManualOverride || isEditing,
+      });
+      navigate('/history');
     } catch (err) {
-      console.error('Failed to update log', err);
-      alert(err.response?.data?.message || 'Failed to update log');
+      console.error('Failed to save food log', err);
+      alert(err.response?.data?.message || 'Failed to save food log');
     } finally {
-      setIsSavingEdit(false);
+      setIsConfirming(false);
     }
   };
 
-  const handleSave = () => {
-    // It's already saved in the database! We can just navigate to history or reset.
-    navigate('/history'); // Assuming /history is the route for viewing logs
-  };
-
-  const handleCancel = async () => {
-    // If we have an ID, delete it from the DB
-    if (logData?.id) {
-      try {
-        await api.delete(`/food-logs/${logData.id}`);
-      } catch (err) {
-        console.error('Failed to delete cancelled log', err);
-      }
-    }
+  const handleCancel = () => {
     resetForm();
   };
 
@@ -122,6 +127,8 @@ export default function SnapFoodTracker() {
     setLogData(null);
     setError('');
     setPreviewUrl('');
+    setHasManualOverride(false);
+    setIsEditing(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -141,7 +148,7 @@ export default function SnapFoodTracker() {
                 type="file" 
                 ref={fileInputRef} 
                 className="hidden" 
-                accept="image/jpeg, image/png, image/heic"
+                accept="image/jpeg, image/png"
                 onChange={handleFileChange}
               />
               <div 
@@ -159,7 +166,7 @@ export default function SnapFoodTracker() {
                   Upload File
                 </button>
                 <span className="text-xs text-gray-400 mt-6 font-medium tracking-widest uppercase">
-                  Supports JPEG, PNG, and HEIC formats
+                  Supports JPEG and PNG formats
                 </span>
               </div>
 
@@ -367,8 +374,8 @@ export default function SnapFoodTracker() {
                         <Sparkles className="w-3.5 h-3.5" /> Log Details
                       </div>
                       <div className="text-xs text-cyan-900 leading-relaxed mt-2">
-                        <strong>Logged At:</strong><br/>
-                        {new Date(logData.logged_at).toLocaleString()}
+                        <strong>Status:</strong><br/>
+                        Pending confirmation
                       </div>
                     </div>
                   </div>
@@ -379,7 +386,7 @@ export default function SnapFoodTracker() {
                       <AlertCircle className="w-3.5 h-3.5" /> Info
                     </div>
                     <p className="text-sm text-gray-700">
-                      Your meal has been securely logged to the database. You can adjust the values here or save it.
+                      Review the AI result, adjust the values if needed, then confirm to save it to your history.
                     </p>
                   </div>
 
@@ -387,9 +394,10 @@ export default function SnapFoodTracker() {
                   <div className="flex gap-3 mt-6">
                     <button 
                       onClick={handleSave}
+                      disabled={isConfirming}
                       className="flex-1 bg-brand-orange hover:bg-brand-orange-dark text-white font-medium py-3.5 px-4 rounded-2xl transition-colors shadow-lg shadow-orange-200"
                     >
-                      Confirm & View History
+                      {isConfirming ? 'Saving...' : 'Confirm & View History'}
                     </button>
                     <button 
                       onClick={handleCancel}

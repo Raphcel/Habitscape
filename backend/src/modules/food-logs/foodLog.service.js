@@ -1,81 +1,75 @@
-const path = require('path');
 const FormData = require('form-data');
-const fs = require('fs');
 const fastapiClient = require('../../utils/fastapi.client');
 const foodLogQuery = require('./foodLog.query');
-const { UPLOAD_DIR } = require('../../config/env');
 
 /**
- * Save the uploaded image as a food log, send to the FastAPI ML microservice 
- * for analysis, and return the updated nutrition prediction.
+ * Send the uploaded image to the FastAPI ML microservice for analysis and
+ * return a draft result. This does not create a food_logs row.
  *
  * @param {Express.Multer.File} file - The multer file object from the request
- * @param {string} userId - ID of the user uploading the food
- * @returns {object} The updated food log
+ * @returns {object} The unsaved food analysis draft
  */
-const analyzeFood = async (file, userId) => {
+const analyzeFood = async (file) => {
   if (!file) {
     const err = new Error('No image file provided');
     err.statusCode = 400;
     throw err;
   }
 
-  // Build a stable public URL for the uploaded file
-  const filename = path.basename(file.path);
-  const imageUrl = `/uploads/${filename}`;
-
-  // 1. Save an initial Food Log to the database immediately
-  const log = await foodLogQuery.createFoodLog({
-    userId,
-    mealName: 'Analyzing...', // Temporary name until ML returns
-    calories: 0,
-    protein: 0,
-    carbs: 0,
-    fat: 0,
-    imageUrl: imageUrl,
-    isManualOverride: false,
-  });
-
-  // 2. Ask ML to process it by sending the DB ID and image URL
-  // The ML service fetches the image instead of receiving it as FormData
   let mlResponse;
   try {
-    const { data } = await fastapiClient.post('/predict/food', {
-      log_id: log.id,
-      image_url: imageUrl
+    const formData = new FormData();
+    formData.append('file', file.buffer, {
+      filename: file.originalname || 'food-image.jpg',
+      contentType: file.mimetype,
+      knownLength: file.size,
+    });
+
+    const { data } = await fastapiClient.post('/api/v1/analyze', formData, {
+      headers: formData.getHeaders(),
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity,
     });
     mlResponse = data;
   } catch (err) {
-    // If ML fails, update the log to reflect the failure
-    await foodLogQuery.updateFoodLog(log.id, userId, { meal_name: 'Unknown food (ML Failed)' });
-    
     const status = err.response?.status ?? 502;
+    const detail = err.response?.data?.detail ?? err.response?.data?.message;
     const message =
-      err.response?.data?.detail ??
-      'ML service is unavailable. Please try again later.';
+      typeof detail === 'string'
+        ? detail
+        : detail
+          ? JSON.stringify(detail)
+          : 'ML service is unavailable. Please try again later.';
     const serviceError = new Error(message);
     serviceError.statusCode = status;
     throw serviceError;
   }
 
-  // 3. Update the DB with the ML result
-  const mealName = mlResponse.meal_name ?? 'Unknown food';
-  const calories = mlResponse.calories ?? mlResponse.calories_kcal ?? 0;
-  const protein = mlResponse.protein ?? mlResponse.protein_g ?? 0;
-  const carbs = mlResponse.carbs ?? mlResponse.carbs_g ?? 0;
-  const fat = mlResponse.fat ?? mlResponse.fat_g ?? 0;
+  const detectedFoods = mlResponse.detection?.detected_foods ?? [];
+  const uniqueFoods = mlResponse.detection?.unique_foods ?? [];
+  const nutrition = mlResponse.nutrition ?? {};
+  const nutritionFoods = nutrition.foods?.map((food) => food.food_name).filter(Boolean) ?? [];
+  const names = uniqueFoods.length > 0 ? uniqueFoods : nutritionFoods;
+  const confidences = detectedFoods
+    .map((food) => Number(food.confidence))
+    .filter((confidence) => Number.isFinite(confidence));
 
-  const updatedLog = await foodLogQuery.updateFoodLog(log.id, userId, {
-    meal_name: mealName,
-    calories: calories,
-    protein: protein,
-    carbs: carbs,
-    fat: fat,
-  });
+  const confidence =
+    confidences.length > 0
+      ? confidences.reduce((total, value) => total + value, 0) / confidences.length
+      : null;
 
   return {
-    ...updatedLog,
-    confidence: mlResponse.confidence ?? null,
+    meal_name: names.length > 0 ? names.join(', ') : 'Unknown food',
+    calories: Math.round(Number(nutrition.total_calories ?? 0)),
+    protein: Number(nutrition.total_protein_g ?? 0),
+    carbs: Number(nutrition.total_carbs_g ?? 0),
+    fat: Number(nutrition.total_fat_g ?? 0),
+    confidence,
+    detected_foods: detectedFoods,
+    nutrition,
+    ai_summary: mlResponse.ai_summary ?? '',
+    image_url: null,
   };
 };
 
