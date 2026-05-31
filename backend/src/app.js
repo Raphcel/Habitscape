@@ -13,6 +13,7 @@ const swaggerSpec = require('./config/swagger');
 const { errorHandler } = require('./middleware/error.middleware');
 const authRoutes = require('./modules/auth/auth.routes');
 const foodLogRoutes = require('./modules/food-logs/foodLog.routes');
+const weightRoutes = require('./modules/weight/weight.routes');
 
 const app = express();
 
@@ -66,6 +67,7 @@ const BASE = '/api/v1';
 app.get(`${BASE}/health`, (req, res) => res.json({ success: true, status: 'ok' }));
 app.use(`${BASE}/auth`, authRoutes);
 app.use(`${BASE}/food-logs`, foodLogRoutes);
+app.use(`${BASE}/weight`, weightRoutes);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {

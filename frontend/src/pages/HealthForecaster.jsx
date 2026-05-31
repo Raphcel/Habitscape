@@ -1,17 +1,91 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LineChart, Activity, Zap, Info } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import CustomSelect from '../components/CustomSelect';
+import CustomSlider from '../components/CustomSlider';
 
 export default function HealthForecaster() {
+  const { user } = useAuth();
   const [prediction, setPrediction] = useState(null);
+  const [steps, setSteps] = useState(8500);
+  const [sleep, setSleep] = useState(7.5);
+  const [water, setWater] = useState(2.5);
+  const [calories, setCalories] = useState(2100);
+  
+  const [age, setAge] = useState(24);
+  const [gender, setGender] = useState('Male');
+  const [heightCm, setHeightCm] = useState(170);
+  const [weightKg, setWeightKg] = useState(65);
+  const [smoker, setSmoker] = useState(false);
+  const [alcohol, setAlcohol] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      if (user.age) setAge(user.age);
+      if (user.gender) setGender(user.gender);
+      if (user.height_cm) setHeightCm(user.height_cm);
+      if (user.weight_kg) setWeightKg(user.weight_kg);
+    }
+  }, [user]);
+
 
   const handlePredict = (e) => {
     e.preventDefault();
+    
+    // Base BMI calculation using user's real height and weight
+    let calculatedBmi = 22.0;
+    if (heightCm > 0 && weightKg > 0) {
+      calculatedBmi = weightKg / Math.pow(heightCm / 100, 2);
+    }
+    
+    // Age factor logic is mostly baseline simulation, so we can tone it down if real BMI is used
+    // Let's keep it minimal
+    calculatedBmi += (age - 24) * 0.02;
+    
+    if (calories > 2000) {
+      calculatedBmi += ((calories - 2000) / 100) * 0.15;
+    } else {
+      calculatedBmi -= ((2000 - calories) / 100) * 0.1;
+    }
+    
+    if (steps > 5000) {
+      calculatedBmi -= ((steps - 5000) / 1000) * 0.15;
+    } else {
+      calculatedBmi += ((5000 - steps) / 1000) * 0.2;
+    }
+    
+    if (sleep < 6) calculatedBmi += 0.5;
+    else if (sleep >= 7 && sleep <= 8) calculatedBmi -= 0.2;
+    
+    if (water >= 2.5) calculatedBmi -= 0.3;
+    
+    if (smoker) calculatedBmi += 0.4;
+    if (alcohol) calculatedBmi += 0.8;
+    
+    calculatedBmi = Math.max(15, Math.min(40, calculatedBmi));
+    const finalBmi = Number(calculatedBmi.toFixed(1));
+    
+    let status = 'Normal';
+    if (finalBmi < 18.5) status = 'Underweight';
+    else if (finalBmi >= 25 && finalBmi < 30) status = 'Overweight';
+    else if (finalBmi >= 30) status = 'Obese';
+    
+    let message = 'Great job maintaining a healthy lifestyle! Keep up the good work.';
+    if (status === 'Overweight' || status === 'Obese') {
+      message = 'Your lifestyle data indicates a risk of higher BMI. Try increasing your daily steps and monitoring caloric intake.';
+    } else if (status === 'Underweight') {
+      message = 'You might be underweight. Consider ensuring you are consuming enough nutritious calories.';
+    } else {
+      if (sleep < 6) message = 'Your BMI is normal, but consider getting more sleep for better overall health.';
+      else if (water < 2) message = 'You are doing great, but increasing your water intake could improve your metabolism.';
+    }
+
     // Simulate API call
     setTimeout(() => {
       setPrediction({
-        bmi: 23.8,
-        status: 'Normal',
-        message: 'Great job maintaining a healthy lifestyle! Keep up with your hydration and step count.'
+        bmi: finalBmi,
+        status: status,
+        message: message
       });
     }, 800);
   };
@@ -33,14 +107,42 @@ export default function HealthForecaster() {
                 <div className="grid grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Age</label>
-                    <input type="number" defaultValue={24} className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-orange/50 transition-shadow" />
+                    <input 
+                      type="number" 
+                      value={age} 
+                      onChange={(e) => setAge(Number(e.target.value))}
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-orange/50 transition-shadow" 
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Gender</label>
-                    <select className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-orange/50 transition-shadow bg-white">
-                      <option>Male</option>
-                      <option>Female</option>
-                    </select>
+                    <CustomSelect
+                      name="gender"
+                      value={gender}
+                      onChange={(e) => setGender(e.target.value)}
+                      options={['Male', 'Female']}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Height (cm)</label>
+                    <input 
+                      type="number" 
+                      value={heightCm} 
+                      onChange={(e) => setHeightCm(Number(e.target.value))}
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-orange/50 transition-shadow" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Weight (kg)</label>
+                    <input 
+                      type="number" 
+                      value={weightKg} 
+                      onChange={(e) => setWeightKg(Number(e.target.value))}
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-orange/50 transition-shadow" 
+                    />
                   </div>
                 </div>
 
@@ -48,43 +150,86 @@ export default function HealthForecaster() {
                   <div>
                     <div className="flex justify-between mb-2">
                       <label className="text-sm font-semibold text-gray-700">Daily Steps</label>
-                      <span className="text-sm font-bold text-brand-orange">8,500 steps</span>
+                      <span className="text-sm font-bold text-brand-orange">{steps.toLocaleString()} steps</span>
                     </div>
-                    <input type="range" min="0" max="20000" defaultValue="8500" className="w-full accent-brand-orange" />
+                    <CustomSlider 
+                      min={0} 
+                      max={20000} 
+                      value={steps}
+                      onChange={(e) => setSteps(Number(e.target.value))}
+                      colorClass="bg-brand-orange"
+                      thumbColorHex="#FF8235"
+                    />
                   </div>
 
                   <div>
                     <div className="flex justify-between mb-2">
                       <label className="text-sm font-semibold text-gray-700">Sleep Hours</label>
-                      <span className="text-sm font-bold text-blue-500">7.5 hours</span>
+                      <span className="text-sm font-bold text-blue-500">{sleep} hours</span>
                     </div>
-                    <input type="range" min="0" max="12" step="0.5" defaultValue="7.5" className="w-full accent-blue-500" />
+                    <CustomSlider 
+                      min={0} 
+                      max={12} 
+                      step={0.5} 
+                      value={sleep}
+                      onChange={(e) => setSleep(Number(e.target.value))}
+                      colorClass="bg-blue-500"
+                      thumbColorHex="#3B82F6"
+                    />
                   </div>
 
                   <div>
                     <div className="flex justify-between mb-2">
                       <label className="text-sm font-semibold text-gray-700">Water Intake (Liters)</label>
-                      <span className="text-sm font-bold text-cyan-500">2.5 L</span>
+                      <span className="text-sm font-bold text-cyan-500">{water} L</span>
                     </div>
-                    <input type="range" min="0" max="6" step="0.1" defaultValue="2.5" className="w-full accent-cyan-500" />
+                    <CustomSlider 
+                      min={0} 
+                      max={6} 
+                      step={0.1} 
+                      value={water}
+                      onChange={(e) => setWater(Number(e.target.value))}
+                      colorClass="bg-cyan-500"
+                      thumbColorHex="#06B6D4"
+                    />
                   </div>
                   
                   <div>
                     <div className="flex justify-between mb-2">
                       <label className="text-sm font-semibold text-gray-700">Daily Calories Consumed</label>
-                      <span className="text-sm font-bold text-purple-500">2,100 kcal</span>
+                      <span className="text-sm font-bold text-purple-500">{calories.toLocaleString()} kcal</span>
                     </div>
-                    <input type="range" min="1000" max="4000" step="50" defaultValue="2100" className="w-full accent-purple-500" />
+                    <CustomSlider 
+                      min={1000} 
+                      max={4000} 
+                      step={50} 
+                      value={calories}
+                      onChange={(e) => setCalories(Number(e.target.value))}
+                      colorClass="bg-purple-500"
+                      thumbColorHex="#A855F7"
+                    />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-6 pt-2">
                   <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-xl">
-                    <input type="checkbox" id="smoker" className="w-5 h-5 accent-brand-orange rounded" />
+                    <input 
+                      type="checkbox" 
+                      id="smoker" 
+                      checked={smoker}
+                      onChange={(e) => setSmoker(e.target.checked)}
+                      className="w-5 h-5 accent-brand-orange rounded" 
+                    />
                     <label htmlFor="smoker" className="text-sm font-medium text-gray-700 cursor-pointer">Smoker</label>
                   </div>
                   <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-xl">
-                    <input type="checkbox" id="alcohol" className="w-5 h-5 accent-brand-orange rounded" />
+                    <input 
+                      type="checkbox" 
+                      id="alcohol" 
+                      checked={alcohol}
+                      onChange={(e) => setAlcohol(e.target.checked)}
+                      className="w-5 h-5 accent-brand-orange rounded" 
+                    />
                     <label htmlFor="alcohol" className="text-sm font-medium text-gray-700 cursor-pointer">Consume Alcohol</label>
                   </div>
                 </div>

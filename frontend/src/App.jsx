@@ -10,6 +10,8 @@ import HealthForecaster from './pages/HealthForecaster';
 import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Onboarding from './pages/Onboarding';
+import Profile from './pages/Profile';
 
 // ─── Guards ──────────────────────────────────────────────────────────────────
 
@@ -17,9 +19,11 @@ import Register from './pages/Register';
  * Redirects unauthenticated users to /login.
  * Preserves the intended destination so we can redirect back after login (optional future feature).
  */
-function ProtectedRoute({ children }) {
+function ProtectedRoute({ children, requireOnboarding = true }) {
   const { user } = useAuth();
-  return user ? children : <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (requireOnboarding && !user.height_cm) return <Navigate to="/onboarding" replace />;
+  return children;
 }
 
 /**
@@ -27,7 +31,11 @@ function ProtectedRoute({ children }) {
  */
 function GuestRoute({ children }) {
   const { user } = useAuth();
-  return user ? <Navigate to="/app" replace /> : children;
+  if (user) {
+    if (!user.height_cm) return <Navigate to="/onboarding" replace />;
+    return <Navigate to="/app" replace />;
+  }
+  return children;
 }
 
 // ─── App Shell (requires auth) ────────────────────────────────────────────────
@@ -45,6 +53,7 @@ function AppLayout() {
           <Route path="snapfood" element={<SnapFoodTracker />} />
           <Route path="history" element={<History />} />
           <Route path="forecaster" element={<HealthForecaster />} />
+          <Route path="profile" element={<Profile />} />
         </Routes>
       </div>
     </div>
@@ -63,11 +72,13 @@ function App() {
         <Route path="/login"    element={<GuestRoute><Login /></GuestRoute>} />
         <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
 
+        <Route path="/onboarding" element={<ProtectedRoute requireOnboarding={false}><Onboarding /></ProtectedRoute>} />
+
         {/* Protected app shell */}
         <Route
           path="/app/*"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute requireOnboarding={true}>
               <AppLayout />
             </ProtectedRoute>
           }

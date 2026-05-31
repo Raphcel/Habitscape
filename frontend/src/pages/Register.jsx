@@ -21,7 +21,7 @@ const Register = () => {
     e.preventDefault();
     const result = await register(name, email, password);
     if (result.success) {
-      navigate('/app');
+      navigate('/onboarding');
     } else if (result.errors) {
       setFieldErrors(result.errors);
     }

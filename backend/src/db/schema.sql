@@ -18,6 +18,10 @@ CREATE TABLE IF NOT EXISTS users (
   protein_goal_g   INT          NOT NULL DEFAULT 150,
   carbs_goal_g     INT          NOT NULL DEFAULT 250,
   fat_goal_g       INT          NOT NULL DEFAULT 70,
+  height_cm        NUMERIC(5,2),
+  weight_kg        NUMERIC(5,2),
+  age              INT,
+  gender           VARCHAR(20),
   created_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
   updated_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
@@ -54,6 +58,19 @@ CREATE TABLE IF NOT EXISTS food_logs (
 
 CREATE INDEX IF NOT EXISTS food_logs_user_date_idx
   ON food_logs (user_id, logged_at DESC);
+
+-- ------------------------------------------------------------
+-- WEIGHT_LOGS
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS weight_logs (
+  id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id             UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  weight_kg           NUMERIC(5,2) NOT NULL,
+  logged_at           TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS weight_logs_user_date_idx
+  ON weight_logs (user_id, logged_at DESC);
 
 -- ------------------------------------------------------------
 -- BMI_PREDICTIONS
