@@ -43,6 +43,15 @@ const upload = multer({
   },
 });
 
+const memoryUpload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+    files: 1,
+  },
+});
+
 /**
  * Single-file upload middleware for the "image" field.
  * Wraps multer errors into a consistent { success, message } shape.
@@ -66,4 +75,21 @@ const uploadImage = (req, res, next) => {
   });
 };
 
-module.exports = { uploadImage };
+const uploadImageMemory = (req, res, next) => {
+  memoryUpload.single('image')(req, res, (err) => {
+    if (!err) return next();
+
+    if (err instanceof multer.MulterError) {
+      const message =
+        err.code === 'LIMIT_FILE_SIZE'
+          ? 'Image must be 5 MB or smaller'
+          : `Upload error: ${err.message}`;
+      return res.status(400).json({ success: false, message });
+    }
+
+    const status = err.status || 500;
+    return res.status(status).json({ success: false, message: err.message });
+  });
+};
+
+module.exports = { uploadImage, uploadImageMemory };

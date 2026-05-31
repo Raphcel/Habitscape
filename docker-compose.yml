@@ -1,0 +1,37 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: habitscape
+      POSTGRES_USER: habitscape
+      POSTGRES_PASSWORD: habitscape
+    volumes:
+      - habitscape-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U habitscape -d habitscape"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: 5000
+      NODE_ENV: development
+      DATABASE_URL: postgres://habitscape:habitscape@postgres:5432/habitscape
+      JWT_SECRET: dev-secret-change-me
+      JWT_EXPIRES_IN: 24h
+      FASTAPI_BASE_URL: http://host.docker.internal:8000
+      CLIENT_ORIGIN: http://localhost:5173
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "5000:5000"
+    command: sh -c "npm run db:init && npm start"
+
+volumes:
+  habitscape-postgres-data:

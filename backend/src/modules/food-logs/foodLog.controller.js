@@ -8,7 +8,7 @@ const { sendSuccess, sendCreated, sendError } = require('../../utils/response.he
  */
 const analyzeFood = async (req, res, next) => {
   try {
-    const result = await foodLogService.analyzeFood(req.file, req.user.id);
+    const result = await foodLogService.analyzeFood(req.file);
     return sendSuccess(res, result, 'Food analysis complete');
   } catch (err) {
     next(err);
