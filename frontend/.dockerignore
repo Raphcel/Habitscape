@@ -2,11 +2,10 @@ node_modules
 npm-debug.log*
 .env
 .env.*
-uploads
+dist
+dist-ssr
 logs
 *.log
-dist
-build
 .git
 .DS_Store
 Thumbs.db

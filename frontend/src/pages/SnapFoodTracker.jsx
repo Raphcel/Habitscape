@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
-import { Camera, Upload, AlertCircle, Sparkles, Utensils, Droplets, Target, ChevronRight, Edit2, Zap, Loader2 } from 'lucide-react';
+import { Camera, Upload, AlertCircle, Sparkles, Utensils, Droplets, Target, ChevronRight, Edit2, Zap, Loader2, Brain, ChevronDown, ChevronUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
+import { analyzeFood } from '../lib/mlApi';
 
 export default function SnapFoodTracker() {
   const [hasImage, setHasImage] = useState(false);
@@ -11,6 +12,7 @@ export default function SnapFoodTracker() {
   const [previewUrl, setPreviewUrl] = useState('');
   const [hasManualOverride, setHasManualOverride] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [showFoodBreakdown, setShowFoodBreakdown] = useState(false);
   
   // Editing state
   const [isEditing, setIsEditing] = useState(false);
@@ -36,26 +38,58 @@ export default function SnapFoodTracker() {
     const objectUrl = URL.createObjectURL(file);
     setPreviewUrl(objectUrl);
 
-    const formData = new FormData();
-    formData.append('image', file);
-
     try {
-      const response = await api.post('/food-logs/analyze', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      const draftLog = response.data.data;
+      // Call Railway ML API directly
+      const result = await analyzeFood(file);
+      
+      // Map the ML response to our component state
+      const detection = result.detection || {};
+      const nutrition = result.nutrition || {};
+      const detectedFoods = detection.detected_foods || [];
+      const uniqueFoods = detection.unique_foods || [];
+      const nutritionFoods = nutrition.foods || [];
+      
+      // Build meal name from unique detected foods
+      const foodNames = uniqueFoods.length > 0 
+        ? uniqueFoods 
+        : nutritionFoods.map(f => f.food_name).filter(Boolean);
+      
+      // Calculate average confidence
+      const confidences = detectedFoods
+        .map(f => Number(f.confidence))
+        .filter(c => Number.isFinite(c));
+      const avgConfidence = confidences.length > 0
+        ? confidences.reduce((sum, c) => sum + c, 0) / confidences.length
+        : null;
+
+      const draftLog = {
+        meal_name: foodNames.length > 0 ? foodNames.join(', ') : 'Unknown food',
+        calories: Math.round(Number(nutrition.total_calories ?? 0)),
+        protein: Number((nutrition.total_protein_g ?? 0).toFixed(1)),
+        carbs: Number((nutrition.total_carbs_g ?? 0).toFixed(1)),
+        fat: Number((nutrition.total_fat_g ?? 0).toFixed(1)),
+        confidence: avgConfidence,
+        detected_foods: detectedFoods,
+        nutrition_foods: nutritionFoods,
+        ai_summary: result.ai_summary || '',
+      };
+
       setLogData(draftLog);
       setEditForm({
-        meal_name: draftLog.meal_name || '',
-        calories: draftLog.calories || 0,
-        protein: draftLog.protein || 0,
-        carbs: draftLog.carbs || 0,
-        fat: draftLog.fat || 0,
+        meal_name: draftLog.meal_name,
+        calories: draftLog.calories,
+        protein: draftLog.protein,
+        carbs: draftLog.carbs,
+        fat: draftLog.fat,
       });
       setHasManualOverride(false);
     } catch (err) {
-      console.error(err);
-      setError(err.response?.data?.message || 'Failed to analyze image. Please try again.');
+      console.error('ML analysis failed:', err);
+      const msg = err.response?.data?.detail 
+        || err.response?.data?.message 
+        || err.message 
+        || 'Failed to analyze image. Please try again.';
+      setError(typeof msg === 'string' ? msg : JSON.stringify(msg));
     } finally {
       setIsAnalyzing(false);
     }
@@ -100,6 +134,7 @@ export default function SnapFoodTracker() {
 
     setIsConfirming(true);
     try {
+      // Save to Express backend (PostgreSQL)
       await api.post('/food-logs', {
         meal_name: source.meal_name,
         calories: Number(source.calories || 0),
@@ -108,7 +143,7 @@ export default function SnapFoodTracker() {
         fat: Number(source.fat || 0),
         is_manual_override: hasManualOverride || isEditing,
       });
-      navigate('/history');
+      navigate('/app/history');
     } catch (err) {
       console.error('Failed to save food log', err);
       alert(err.response?.data?.message || 'Failed to save food log');
@@ -129,6 +164,7 @@ export default function SnapFoodTracker() {
     setPreviewUrl('');
     setHasManualOverride(false);
     setIsEditing(false);
+    setShowFoodBreakdown(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -243,13 +279,13 @@ export default function SnapFoodTracker() {
             </div>
 
             {/* Results Panel */}
-            <div className="w-[450px] bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col relative overflow-hidden">
+            <div className="w-[450px] bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col relative overflow-y-auto max-h-[600px]">
               {isAnalyzing ? (
                 <div className="absolute inset-0 z-10 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center">
                   <Loader2 className="w-12 h-12 text-brand-orange animate-spin mb-4" />
                   <h3 className="text-xl font-bold text-gray-900 mb-2">Analyzing your meal...</h3>
                   <p className="text-gray-500 text-sm text-center px-6">
-                    Our AI is identifying ingredients, portion sizes, and hidden nutrients.
+                    Our AI is identifying ingredients, estimating nutrition, and generating a summary.
                   </p>
                 </div>
               ) : error ? (
@@ -356,7 +392,7 @@ export default function SnapFoodTracker() {
                     </div>
                   </div>
 
-                  {/* Insights - Mocked for now since backend doesn't return this yet */}
+                  {/* Insights */}
                   <div className="grid grid-cols-2 gap-4 mb-6">
                     <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-4">
                       <div className="flex items-center gap-1.5 text-blue-600 text-xs font-semibold uppercase tracking-wider mb-2">
@@ -380,7 +416,56 @@ export default function SnapFoodTracker() {
                     </div>
                   </div>
 
-                  {/* Summary */}
+                  {/* AI Summary */}
+                  {logData.ai_summary && (
+                    <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 border border-purple-100 rounded-2xl p-4 mb-4">
+                      <div className="flex items-center gap-1.5 text-indigo-700 text-xs font-semibold uppercase tracking-wider mb-2">
+                        <Brain className="w-3.5 h-3.5" /> AI Summary
+                      </div>
+                      <p className="text-sm text-indigo-900/80 leading-relaxed whitespace-pre-line">
+                        {logData.ai_summary}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Per-Food Nutrition Breakdown */}
+                  {logData.nutrition_foods && logData.nutrition_foods.length > 0 && (
+                    <div className="mb-4">
+                      <button
+                        onClick={() => setShowFoodBreakdown(!showFoodBreakdown)}
+                        className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-brand-orange transition-colors w-full"
+                      >
+                        <Utensils className="w-3.5 h-3.5" />
+                        Per-Food Breakdown ({logData.nutrition_foods.length} items)
+                        {showFoodBreakdown ? <ChevronUp className="w-4 h-4 ml-auto" /> : <ChevronDown className="w-4 h-4 ml-auto" />}
+                      </button>
+                      {showFoodBreakdown && (
+                        <div className="mt-3 space-y-2">
+                          {logData.nutrition_foods.map((food, idx) => (
+                            <div key={idx} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="font-semibold text-gray-800 text-sm capitalize">{food.food_name}</span>
+                                <span className="text-brand-orange font-bold text-xs bg-orange-50 px-2 py-0.5 rounded-md">
+                                  {Math.round(food.calories_kcal)} kcal
+                                </span>
+                              </div>
+                              <div className="flex gap-3 text-[11px] text-gray-500 font-medium">
+                                <span>P: {food.protein_g?.toFixed(1)}g</span>
+                                <span>C: {food.carbs_g?.toFixed(1)}g</span>
+                                <span>F: {food.fat_g?.toFixed(1)}g</span>
+                                {food.serving_size_g > 0 && <span className="text-gray-400">• {food.serving_size_g}g serving</span>}
+                              </div>
+                              {food.notes && (
+                                <p className="text-[10px] text-gray-400 mt-1 italic">{food.notes}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Info */}
                   <div className="bg-orange-50/30 border border-brand-orange-light rounded-2xl p-4 mb-auto">
                     <div className="flex items-center gap-1.5 text-brand-orange text-xs font-semibold uppercase tracking-wider mb-2">
                       <AlertCircle className="w-3.5 h-3.5" /> Info

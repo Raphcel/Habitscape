@@ -54,6 +54,7 @@ function AppLayout() {
           <Route path="history" element={<History />} />
           <Route path="forecaster" element={<HealthForecaster />} />
           <Route path="profile" element={<Profile />} />
+          <Route path="*" element={<Navigate to="dashboard" replace />} />
         </Routes>
       </div>
     </div>

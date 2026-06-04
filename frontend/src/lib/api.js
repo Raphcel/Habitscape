@@ -10,7 +10,7 @@ import axios from 'axios';
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api/v1',
   headers: { 'Content-Type': 'application/json' },
-  timeout: 15_000, // fail fast — don't wait forever
+  timeout: 60_000, // allow slower AI summary generation requests
 });
 
 // ─── Request Interceptor ─────────────────────────────────────────────────────

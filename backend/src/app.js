@@ -14,6 +14,8 @@ const { errorHandler } = require('./middleware/error.middleware');
 const authRoutes = require('./modules/auth/auth.routes');
 const foodLogRoutes = require('./modules/food-logs/foodLog.routes');
 const weightRoutes = require('./modules/weight/weight.routes');
+const forecasterRoutes = require('./modules/forecaster/forecaster.routes');
+const dailySummaryRoutes = require('./modules/daily-summaries/dailySummary.routes');
 
 const app = express();
 
@@ -68,6 +70,8 @@ app.get(`${BASE}/health`, (req, res) => res.json({ success: true, status: 'ok' }
 app.use(`${BASE}/auth`, authRoutes);
 app.use(`${BASE}/food-logs`, foodLogRoutes);
 app.use(`${BASE}/weight`, weightRoutes);
+app.use(`${BASE}/forecaster`, forecasterRoutes);
+app.use(`${BASE}/daily-summaries`, dailySummaryRoutes);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {

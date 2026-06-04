@@ -1,93 +1,97 @@
 import React, { useState, useEffect } from 'react';
-import { LineChart, Activity, Zap, Info } from 'lucide-react';
+import { LineChart, Activity, Zap, Info, Loader2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import CustomSelect from '../components/CustomSelect';
 import CustomSlider from '../components/CustomSlider';
+import api from '../lib/api';
 
 export default function HealthForecaster() {
   const { user } = useAuth();
   const [prediction, setPrediction] = useState(null);
-  const [steps, setSteps] = useState(8500);
-  const [sleep, setSleep] = useState(7.5);
-  const [water, setWater] = useState(2.5);
-  const [calories, setCalories] = useState(2100);
-  
-  const [age, setAge] = useState(24);
-  const [gender, setGender] = useState('Male');
-  const [heightCm, setHeightCm] = useState(170);
-  const [weightKg, setWeightKg] = useState(65);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  // Lifestyle inputs
+  const [calories, setCalories] = useState(2200);
+  const [fatTotal, setFatTotal] = useState(70);
+  const [sleepHours, setSleepHours] = useState(7);
+  const [stressLevel, setStressLevel] = useState(5);
+  const [exerciseFreq, setExerciseFreq] = useState(3);
+  const [dietQuality, setDietQuality] = useState(3);
   const [smoker, setSmoker] = useState(false);
-  const [alcohol, setAlcohol] = useState(false);
+  const [alcohol, setAlcohol] = useState(0);
+
+  // Profile inputs — pre-filled from user profile
+  const [age, setAge] = useState(24);
+  const [heightCm, setHeightCm] = useState(170);
 
   useEffect(() => {
     if (user) {
       if (user.age) setAge(user.age);
-      if (user.gender) setGender(user.gender);
       if (user.height_cm) setHeightCm(user.height_cm);
-      if (user.weight_kg) setWeightKg(user.weight_kg);
     }
   }, [user]);
 
-
-  const handlePredict = (e) => {
+  const handlePredict = async (e) => {
     e.preventDefault();
-    
-    // Base BMI calculation using user's real height and weight
-    let calculatedBmi = 22.0;
-    if (heightCm > 0 && weightKg > 0) {
-      calculatedBmi = weightKg / Math.pow(heightCm / 100, 2);
-    }
-    
-    // Age factor logic is mostly baseline simulation, so we can tone it down if real BMI is used
-    // Let's keep it minimal
-    calculatedBmi += (age - 24) * 0.02;
-    
-    if (calories > 2000) {
-      calculatedBmi += ((calories - 2000) / 100) * 0.15;
-    } else {
-      calculatedBmi -= ((2000 - calories) / 100) * 0.1;
-    }
-    
-    if (steps > 5000) {
-      calculatedBmi -= ((steps - 5000) / 1000) * 0.15;
-    } else {
-      calculatedBmi += ((5000 - steps) / 1000) * 0.2;
-    }
-    
-    if (sleep < 6) calculatedBmi += 0.5;
-    else if (sleep >= 7 && sleep <= 8) calculatedBmi -= 0.2;
-    
-    if (water >= 2.5) calculatedBmi -= 0.3;
-    
-    if (smoker) calculatedBmi += 0.4;
-    if (alcohol) calculatedBmi += 0.8;
-    
-    calculatedBmi = Math.max(15, Math.min(40, calculatedBmi));
-    const finalBmi = Number(calculatedBmi.toFixed(1));
-    
-    let status = 'Normal';
-    if (finalBmi < 18.5) status = 'Underweight';
-    else if (finalBmi >= 25 && finalBmi < 30) status = 'Overweight';
-    else if (finalBmi >= 30) status = 'Obese';
-    
-    let message = 'Great job maintaining a healthy lifestyle! Keep up the good work.';
-    if (status === 'Overweight' || status === 'Obese') {
-      message = 'Your lifestyle data indicates a risk of higher BMI. Try increasing your daily steps and monitoring caloric intake.';
-    } else if (status === 'Underweight') {
-      message = 'You might be underweight. Consider ensuring you are consuming enough nutritious calories.';
-    } else {
-      if (sleep < 6) message = 'Your BMI is normal, but consider getting more sleep for better overall health.';
-      else if (water < 2) message = 'You are doing great, but increasing your water intake could improve your metabolism.';
-    }
+    setError('');
+    setIsLoading(true);
+    setPrediction(null);
 
-    // Simulate API call
-    setTimeout(() => {
-      setPrediction({
-        bmi: finalBmi,
-        status: status,
-        message: message
+    try {
+      const response = await api.post('/forecaster/predict-bmi', {
+        fat_total_g: fatTotal,
+        height_cm: heightCm,
+        age,
+        sleep_hours: sleepHours,
+        calorie_daily: calories,
+        diet_quality_num: dietQuality,
+        smoker_num: smoker ? 1 : 0,
+        alcohol_num: alcohol,
+        stress_level: stressLevel,
+        exercise_freq_num: exerciseFreq,
       });
-    }, 800);
+
+      setPrediction(response.data.data);
+    } catch (err) {
+      console.error('BMI prediction failed:', err);
+      setError(
+        err.response?.data?.message ||
+        'Failed to get prediction. The ML service might be starting up — please try again in a moment.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getStatusColor = (category) => {
+    switch (category) {
+      case 'Underweight': return 'text-blue-300';
+      case 'Normal': return 'text-emerald-300';
+      case 'Overweight': return 'text-amber-300';
+      case 'Obese': return 'text-red-300';
+      default: return 'text-white';
+    }
+  };
+
+  const getStatusBg = (category) => {
+    switch (category) {
+      case 'Underweight': return 'bg-blue-500/20 text-blue-300 border-blue-500/30';
+      case 'Normal': return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
+      case 'Overweight': return 'bg-amber-500/20 text-amber-300 border-amber-500/30';
+      case 'Obese': return 'bg-red-500/20 text-red-300 border-red-500/30';
+      default: return 'bg-gray-500/20 text-gray-300 border-gray-500/30';
+    }
+  };
+
+  const getGradient = (category) => {
+    switch (category) {
+      case 'Underweight': return 'from-blue-300 to-cyan-300';
+      case 'Normal': return 'from-emerald-300 to-cyan-300';
+      case 'Overweight': return 'from-amber-300 to-orange-300';
+      case 'Obese': return 'from-red-300 to-pink-300';
+      default: return 'from-gray-300 to-gray-300';
+    }
   };
 
   return (
@@ -95,7 +99,7 @@ export default function HealthForecaster() {
       <div className="max-w-4xl">
         <header className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-1">Precision BMI Forecaster</h1>
-          <p className="text-gray-500">Predict your future health metrics using advanced machine learning models based on your current lifestyle data.</p>
+          <p className="text-gray-500">Predict your BMI category using a neural network model trained on lifestyle data, with personalized AI recommendations.</p>
         </header>
 
         <div className="grid grid-cols-5 gap-8">
@@ -111,36 +115,19 @@ export default function HealthForecaster() {
                       type="number" 
                       value={age} 
                       onChange={(e) => setAge(Number(e.target.value))}
+                      min={1}
+                      max={150}
                       className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-orange/50 transition-shadow" 
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Gender</label>
-                    <CustomSelect
-                      name="gender"
-                      value={gender}
-                      onChange={(e) => setGender(e.target.value)}
-                      options={['Male', 'Female']}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Height (cm)</label>
                     <input 
                       type="number" 
                       value={heightCm} 
                       onChange={(e) => setHeightCm(Number(e.target.value))}
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-orange/50 transition-shadow" 
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Weight (kg)</label>
-                    <input 
-                      type="number" 
-                      value={weightKg} 
-                      onChange={(e) => setWeightKg(Number(e.target.value))}
+                      min={50}
+                      max={300}
                       className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-orange/50 transition-shadow" 
                     />
                   </div>
@@ -149,14 +136,15 @@ export default function HealthForecaster() {
                 <div className="space-y-4">
                   <div>
                     <div className="flex justify-between mb-2">
-                      <label className="text-sm font-semibold text-gray-700">Daily Steps</label>
-                      <span className="text-sm font-bold text-brand-orange">{steps.toLocaleString()} steps</span>
+                      <label className="text-sm font-semibold text-gray-700">Daily Calories</label>
+                      <span className="text-sm font-bold text-brand-orange">{calories.toLocaleString()} kcal</span>
                     </div>
                     <CustomSlider 
-                      min={0} 
-                      max={20000} 
-                      value={steps}
-                      onChange={(e) => setSteps(Number(e.target.value))}
+                      min={1000} 
+                      max={4000} 
+                      step={50}
+                      value={calories}
+                      onChange={(e) => setCalories(Number(e.target.value))}
                       colorClass="bg-brand-orange"
                       thumbColorHex="#FF8235"
                     />
@@ -164,15 +152,31 @@ export default function HealthForecaster() {
 
                   <div>
                     <div className="flex justify-between mb-2">
+                      <label className="text-sm font-semibold text-gray-700">Daily Fat Intake (g)</label>
+                      <span className="text-sm font-bold text-red-400">{fatTotal} g</span>
+                    </div>
+                    <CustomSlider 
+                      min={0} 
+                      max={200} 
+                      step={1}
+                      value={fatTotal}
+                      onChange={(e) => setFatTotal(Number(e.target.value))}
+                      colorClass="bg-red-400"
+                      thumbColorHex="#F87171"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between mb-2">
                       <label className="text-sm font-semibold text-gray-700">Sleep Hours</label>
-                      <span className="text-sm font-bold text-blue-500">{sleep} hours</span>
+                      <span className="text-sm font-bold text-blue-500">{sleepHours} hours</span>
                     </div>
                     <CustomSlider 
                       min={0} 
                       max={12} 
                       step={0.5} 
-                      value={sleep}
-                      onChange={(e) => setSleep(Number(e.target.value))}
+                      value={sleepHours}
+                      onChange={(e) => setSleepHours(Number(e.target.value))}
                       colorClass="bg-blue-500"
                       thumbColorHex="#3B82F6"
                     />
@@ -180,62 +184,87 @@ export default function HealthForecaster() {
 
                   <div>
                     <div className="flex justify-between mb-2">
-                      <label className="text-sm font-semibold text-gray-700">Water Intake (Liters)</label>
-                      <span className="text-sm font-bold text-cyan-500">{water} L</span>
+                      <label className="text-sm font-semibold text-gray-700">Stress Level</label>
+                      <span className="text-sm font-bold text-purple-500">{stressLevel}/10</span>
                     </div>
                     <CustomSlider 
-                      min={0} 
-                      max={6} 
-                      step={0.1} 
-                      value={water}
-                      onChange={(e) => setWater(Number(e.target.value))}
-                      colorClass="bg-cyan-500"
-                      thumbColorHex="#06B6D4"
-                    />
-                  </div>
-                  
-                  <div>
-                    <div className="flex justify-between mb-2">
-                      <label className="text-sm font-semibold text-gray-700">Daily Calories Consumed</label>
-                      <span className="text-sm font-bold text-purple-500">{calories.toLocaleString()} kcal</span>
-                    </div>
-                    <CustomSlider 
-                      min={1000} 
-                      max={4000} 
-                      step={50} 
-                      value={calories}
-                      onChange={(e) => setCalories(Number(e.target.value))}
+                      min={1} 
+                      max={10} 
+                      step={1} 
+                      value={stressLevel}
+                      onChange={(e) => setStressLevel(Number(e.target.value))}
                       colorClass="bg-purple-500"
                       thumbColorHex="#A855F7"
                     />
                   </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-6 pt-2">
-                  <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-xl">
-                    <input 
-                      type="checkbox" 
-                      id="smoker" 
-                      checked={smoker}
-                      onChange={(e) => setSmoker(e.target.checked)}
-                      className="w-5 h-5 accent-brand-orange rounded" 
+                  <div>
+                    <div className="flex justify-between mb-2">
+                      <label className="text-sm font-semibold text-gray-700">Exercise (times/week)</label>
+                      <span className="text-sm font-bold text-cyan-500">{exerciseFreq}x</span>
+                    </div>
+                    <CustomSlider 
+                      min={0} 
+                      max={14} 
+                      step={1} 
+                      value={exerciseFreq}
+                      onChange={(e) => setExerciseFreq(Number(e.target.value))}
+                      colorClass="bg-cyan-500"
+                      thumbColorHex="#06B6D4"
                     />
-                    <label htmlFor="smoker" className="text-sm font-medium text-gray-700 cursor-pointer">Smoker</label>
-                  </div>
-                  <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-xl">
-                    <input 
-                      type="checkbox" 
-                      id="alcohol" 
-                      checked={alcohol}
-                      onChange={(e) => setAlcohol(e.target.checked)}
-                      className="w-5 h-5 accent-brand-orange rounded" 
-                    />
-                    <label htmlFor="alcohol" className="text-sm font-medium text-gray-700 cursor-pointer">Consume Alcohol</label>
                   </div>
                 </div>
 
-                <button type="submit" className="w-full bg-brand-orange hover:bg-brand-orange-dark text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-orange-200 mt-4 flex items-center justify-center gap-2">
-                  <Zap className="w-5 h-5" /> Generate Forecast
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Diet Quality</label>
+                    <CustomSelect
+                      name="diet_quality"
+                      value={String(dietQuality)}
+                      onChange={(e) => setDietQuality(Number(e.target.value))}
+                      options={['1', '2', '3', '4', '5']}
+                    />
+                    <p className="text-xs text-gray-400 mt-1">1 = Poor, 5 = Excellent</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Alcohol</label>
+                    <CustomSelect
+                      name="alcohol"
+                      value={String(alcohol)}
+                      onChange={(e) => setAlcohol(Number(e.target.value))}
+                      options={['0', '1', '2']}
+                    />
+                    <p className="text-xs text-gray-400 mt-1">0 = None, 1 = Light, 2 = Heavy</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-xl">
+                  <input 
+                    type="checkbox" 
+                    id="smoker" 
+                    checked={smoker}
+                    onChange={(e) => setSmoker(e.target.checked)}
+                    className="w-5 h-5 accent-brand-orange rounded" 
+                  />
+                  <label htmlFor="smoker" className="text-sm font-medium text-gray-700 cursor-pointer">Smoker</label>
+                </div>
+
+                <button 
+                  type="submit" 
+                  disabled={isLoading}
+                  className="w-full bg-brand-orange hover:bg-brand-orange-dark disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-orange-200 mt-4 flex items-center justify-center gap-2"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Analyzing...
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-5 h-5" />
+                      Generate Forecast
+                    </>
+                  )}
                 </button>
               </form>
             </div>
@@ -247,7 +276,23 @@ export default function HealthForecaster() {
                 <LineChart className="w-4 h-4" /> Forecast Results
               </div>
               
-              {!prediction ? (
+              {isLoading ? (
+                <div className="h-64 flex flex-col items-center justify-center text-center">
+                  <Loader2 className="w-12 h-12 mb-4 animate-spin text-indigo-300" />
+                  <p className="text-sm text-indigo-200">Running ML model & generating AI recommendations...</p>
+                </div>
+              ) : error ? (
+                <div className="h-64 flex flex-col items-center justify-center text-center">
+                  <AlertCircle className="w-12 h-12 mb-4 text-red-400" />
+                  <p className="text-sm text-red-300 mb-4">{error}</p>
+                  <button 
+                    onClick={handlePredict}
+                    className="text-sm text-indigo-300 hover:text-white underline transition-colors"
+                  >
+                    Try again
+                  </button>
+                </div>
+              ) : !prediction ? (
                 <div className="h-64 flex flex-col items-center justify-center text-center opacity-60">
                   <Activity className="w-12 h-12 mb-4 animate-pulse" />
                   <p className="text-sm">Enter your lifestyle data and run the model to see your personalized health forecast.</p>
@@ -255,34 +300,53 @@ export default function HealthForecaster() {
               ) : (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                   <div className="text-center mb-8">
-                    <div className="text-6xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 to-cyan-300">
-                      {prediction.bmi}
+                    <div className={`text-5xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r ${getGradient(prediction.bmi_category)}`}>
+                      {prediction.bmi_category}
                     </div>
-                    <div className="inline-block bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3 py-1 rounded-full text-sm font-medium tracking-wide">
-                      Predicted BMI: {prediction.status}
-                    </div>
-                  </div>
-
-                  <div className="bg-white/10 rounded-2xl p-5 backdrop-blur-md mb-6">
-                    <div className="flex items-start gap-3">
-                      <Info className="w-5 h-5 text-indigo-300 flex-shrink-0 mt-0.5" />
-                      <p className="text-sm text-indigo-100 leading-relaxed">
-                        {prediction.message}
-                      </p>
+                    <div className={`inline-block ${getStatusBg(prediction.bmi_category)} border px-3 py-1 rounded-full text-sm font-medium tracking-wide`}>
+                      Confidence: {Math.round(prediction.confidence * 100)}%
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    <h4 className="text-xs font-bold text-indigo-300 uppercase tracking-widest">Model Confidence</h4>
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 h-2 bg-indigo-950 rounded-full overflow-hidden">
-                        <div className="h-full bg-indigo-400 rounded-full w-[94%] relative">
-                           <div className="absolute top-0 left-0 right-0 bottom-0 bg-gradient-to-r from-transparent to-white/30"></div>
+                  {/* Probabilities breakdown */}
+                  {prediction.probabilities && (
+                    <div className="space-y-3 mb-6">
+                      <h4 className="text-xs font-bold text-indigo-300 uppercase tracking-widest">Category Probabilities</h4>
+                      {Object.entries(prediction.probabilities).map(([category, prob]) => (
+                        <div key={category} className="flex items-center gap-3">
+                          <span className={`text-xs font-medium w-24 ${getStatusColor(category)}`}>{category}</span>
+                          <div className="flex-1 h-2 bg-indigo-950 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-indigo-400 rounded-full transition-all duration-500 relative"
+                              style={{ width: `${Math.round(prob * 100)}%` }}
+                            >
+                              <div className="absolute top-0 left-0 right-0 bottom-0 bg-gradient-to-r from-transparent to-white/30"></div>
+                            </div>
+                          </div>
+                          <span className="text-xs font-bold text-indigo-200 w-12 text-right">{Math.round(prob * 100)}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* AI Recommendation */}
+                  {prediction.ai_recommendation && (
+                    <div className="bg-white/10 rounded-2xl p-5 backdrop-blur-md mb-6">
+                      <div className="flex items-start gap-3">
+                        <Info className="w-5 h-5 text-indigo-300 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <h4 className="text-xs font-bold text-indigo-300 uppercase tracking-widest mb-2">AI Recommendation</h4>
+                          <p className="text-sm text-indigo-100 leading-relaxed whitespace-pre-line">
+                            {prediction.ai_recommendation}
+                          </p>
                         </div>
                       </div>
-                      <span className="text-sm font-bold text-indigo-200">94%</span>
                     </div>
-                    <p className="text-[10px] text-indigo-400">Based on XGBoost regression model analysis</p>
+                  )}
+
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-bold text-indigo-300 uppercase tracking-widest">Model Info</h4>
+                    <p className="text-[10px] text-indigo-400">Neural network classifier with DeepSeek AI-powered health recommendations</p>
                   </div>
                 </div>
               )}

@@ -1,12 +1,16 @@
 services:
   postgres:
     image: postgres:16-alpine
+    container_name: habitscape-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_DB: habitscape
       POSTGRES_USER: habitscape
       POSTGRES_PASSWORD: habitscape
+    ports:
+      - "5432:5432"
     volumes:
-      - habitscape-postgres-data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U habitscape -d habitscape"]
       interval: 5s
@@ -16,6 +20,8 @@ services:
   backend:
     build:
       context: ./backend
+    container_name: habitscape-backend
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -23,15 +29,46 @@ services:
       PORT: 5000
       NODE_ENV: development
       DATABASE_URL: postgres://habitscape:habitscape@postgres:5432/habitscape
-      JWT_SECRET: dev-secret-change-me
+      JWT_SECRET: local-dev-secret-change-me
       JWT_EXPIRES_IN: 24h
-      FASTAPI_BASE_URL: http://host.docker.internal:8000
+      FASTAPI_BASE_URL: https://habitscape-production.up.railway.app
+      BMI_ML_BASE_URL: http://bmi-ml:8000
       CLIENT_ORIGIN: http://localhost:5173
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      GEMINI_API_KEY: ""
+      UPLOAD_DIR: uploads
     ports:
       - "5000:5000"
+    volumes:
+      - backend-uploads:/app/uploads
     command: sh -c "npm run db:init && npm start"
 
+  frontend:
+    build:
+      context: ./frontend
+    container_name: habitscape-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      VITE_API_URL: http://localhost:5000/api/v1
+    ports:
+      - "5173:5173"
+    command: npm run dev -- --host 0.0.0.0
+
+  bmi-ml:
+    build:
+      context: ../ML/Habitscape/bmi-classification
+    container_name: habitscape-bmi-ml
+    restart: unless-stopped
+    environment:
+      SUMOPOD_API_KEY: ${SUMOPOD_API_KEY:-change_me}
+      SUMOPOD_BASE_URL: ${SUMOPOD_BASE_URL:-https://ai.sumopod.com/v1}
+      SUMOPOD_MODEL: ${SUMOPOD_MODEL:-deepseek-v4-pro}
+    ports:
+      - "8001:8000"
+    volumes:
+      - ../ML/Habitscape/bmi-classification/models:/app/models:ro
+
 volumes:
-  habitscape-postgres-data:
+  postgres-data:
+  backend-uploads:

@@ -26,8 +26,11 @@ module.exports = {
   JWT_SECRET: requireEnv('JWT_SECRET'),
   JWT_EXPIRES_IN: optionalEnv('JWT_EXPIRES_IN', '24h'),
 
-  // ML Service
-  FASTAPI_BASE_URL: optionalEnv('FASTAPI_BASE_URL', 'http://localhost:8000'),
+  // ML Service (food detection — Railway)
+  FASTAPI_BASE_URL: optionalEnv('FASTAPI_BASE_URL', 'https://habitscape-production.up.railway.app'),
+
+  // ML Service (BMI classification)
+  BMI_ML_BASE_URL: optionalEnv('BMI_ML_BASE_URL', 'http://localhost:8001'),
 
   // Frontend origin for CORS
   CLIENT_ORIGIN: optionalEnv('CLIENT_ORIGIN', 'http://localhost:5173'),

@@ -7,7 +7,7 @@ const { FASTAPI_BASE_URL } = require('../config/env');
  */
 const fastapiClient = axios.create({
   baseURL: FASTAPI_BASE_URL,
-  timeout: 30_000, // 30 s — ML inference can be slow
+  timeout: 60_000, // 60 s — Railway cold starts can be slow
   headers: {
     Accept: 'application/json',
   },
