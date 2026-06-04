@@ -582,11 +582,7 @@ export default function History() {
                     <tr key={log.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="py-4 font-semibold text-gray-800 flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 flex-shrink-0 flex items-center justify-center">
-                          {log.image_url ? (
-                            <img src={log.image_url} alt={log.meal_name} className="w-full h-full object-cover" />
-                          ) : (
-                            <Camera className="w-4 h-4 text-gray-400" />
-                          )}
+                          <Camera className="w-4 h-4 text-gray-400" />
                         </div>
                         {editingId === log.id ? (
                           <input 

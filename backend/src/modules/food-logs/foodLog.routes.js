@@ -78,9 +78,6 @@ const analyzeLimiter = rateLimit({
  *                         confidence:
  *                           type: number
  *                           example: 0.91
- *                         image_url:
- *                           nullable: true
- *                           example: null
  *                         ai_summary:
  *                           type: string
  *                         detected_foods:
@@ -135,9 +132,6 @@ router.post(
  *               fat:
  *                 type: number
  *                 example: 18.0
- *               image_url:
- *                 type: string
- *                 example: /uploads/food-1716000000000-123456789.jpg
  *               is_manual_override:
  *                 type: boolean
  *                 example: false

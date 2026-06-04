@@ -40,8 +40,8 @@ export default function SnapFoodTracker() {
     setPreviewUrl(objectUrl);
 
     try {
-      // Send the image through our backend so it can upload to Supabase Storage
-      // and return a persisted image_url along with the ML analysis draft.
+      // Send the image through our backend for ML analysis only.
+      // The image is not persisted after the analysis response.
       const formData = new FormData();
       formData.append('image', file);
 
@@ -80,7 +80,6 @@ export default function SnapFoodTracker() {
         detected_foods: detectedFoods,
         nutrition_foods: nutritionFoods,
         ai_summary: result.ai_summary || '',
-        image_url: result.image_url || null,
       };
 
       setLogData(draftLog);
@@ -150,7 +149,6 @@ export default function SnapFoodTracker() {
         protein: Number(source.protein || 0),
         carbs: Number(source.carbs || 0),
         fat: Number(source.fat || 0),
-        image_url: logData?.image_url || null,
         is_manual_override: hasManualOverride || isEditing,
       });
       navigate('/app/dashboard');

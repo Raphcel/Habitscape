@@ -57,7 +57,7 @@ Once you are connected to the `psql` shell, you can use these commands:
 SELECT * FROM food_logs;
 ```
 
-**Check recent uploads:**
+**Check recent food logs:**
 ```sql
 SELECT id, meal_name, image_url, created_at 
 FROM food_logs 
@@ -81,4 +81,4 @@ In the current MVP Snap Food flow:
 3. The backend returns an unsaved nutrition draft to the frontend.
 4. The database stores a `food_logs` row only after the user confirms the result.
 
-Confirmed logs may have `image_url = null` because this MVP flow does not persist analyzed images.
+Confirmed logs use `image_url = null` because this MVP flow does not persist analyzed images.

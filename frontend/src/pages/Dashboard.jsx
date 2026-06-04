@@ -473,14 +473,10 @@ export default function Dashboard() {
               foodLogs.slice(0, 2).map((log) => (
                 <div key={log.id} className="rounded-2xl overflow-hidden border border-gray-100 group bg-white shadow-sm hover:shadow-md transition-shadow cursor-pointer">
                   <div className="h-36 bg-gray-200 w-full overflow-hidden relative">
-                    {log.image_url ? (
-                      <img src={log.image_url} alt={log.meal_name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center bg-orange-50 text-brand-orange/50 group-hover:scale-105 transition-transform duration-500">
-                        <Utensils className="w-10 h-10 mb-2" />
-                        <span className="text-xs font-semibold uppercase tracking-wider">{t('dashboard.noPhoto')}</span>
-                      </div>
-                    )}
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-orange-50 text-brand-orange/50 group-hover:scale-105 transition-transform duration-500">
+                      <Utensils className="w-10 h-10 mb-2" />
+                      <span className="text-xs font-semibold uppercase tracking-wider">{t('dashboard.noPhoto')}</span>
+                    </div>
                   </div>
                   <div className="p-4">
                     <div className="flex justify-between items-baseline mb-2">
