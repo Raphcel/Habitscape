@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Activity, TrendingUp, Shield, Target, BarChart3, Brain, Heart, Moon, Dumbbell, Utensils, Flame, AlertTriangle, ChevronRight, ChevronDown, Sparkles } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Activity, TrendingUp, Shield, Target, BarChart3, Brain, Heart, Moon, Dumbbell, Utensils, Flame, AlertTriangle, ChevronRight, Sparkles } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import CustomSelect from '../components/CustomSelect';
 import CustomSlider from '../components/CustomSlider';
@@ -42,6 +43,7 @@ const AB_INSIGHTS = {
 };
 
 export default function HealthForecaster() {
+  const { t } = useTranslation();
   const { user } = useAuth();
 
   // Lifestyle inputs
@@ -295,7 +297,7 @@ export default function HealthForecaster() {
         priority: 1,
         title: 'Prioritize Diet Improvement',
         desc: "Diet quality has the largest effect on BMI (Cohen's d = 0.67, medium effect). Upgrading from Poor to Good/Excellent diet is the single most impactful change you can make.",
-        impact: 'High',
+        impact: t('forecaster.impactHigh'),
         color: '#10B981',
       });
     }
@@ -305,7 +307,7 @@ export default function HealthForecaster() {
         priority: 2,
         title: 'Increase Exercise Frequency',
         desc: 'Population data shows BMI drops from 28.5 → 25.4 for daily exercisers. Aim for at least 3 sessions per week for a consistent small but significant effect.',
-        impact: 'Medium',
+        impact: t('forecaster.impactMedium'),
         color: '#06B6D4',
       });
     }
@@ -315,7 +317,7 @@ export default function HealthForecaster() {
         priority: 3,
         title: 'Improve Sleep Duration',
         desc: 'Sleeping ≥7 hours is associated with 1.5 BMI points lower on average. This is a statistically significant and easily achievable lifestyle change.',
-        impact: 'Medium',
+        impact: t('forecaster.impactMedium'),
         color: '#8B5CF6',
       });
     }
@@ -326,7 +328,7 @@ export default function HealthForecaster() {
         priority: 1,
         title: 'Reduce Fat-to-Calorie Ratio',
         desc: `Your fat ratio is ${fatRatio.toFixed(1)}%. Fat ratio (fat_ratio_pct) is the #1 most important feature in the prediction model (26% importance). Aim to keep it below 30%.`,
-        impact: 'High',
+        impact: t('forecaster.impactHigh'),
         color: '#EF4444',
       });
     }
@@ -336,7 +338,7 @@ export default function HealthForecaster() {
         priority: 4,
         title: 'Manage Stress Levels',
         desc: 'High stress (≥7) is linked to higher BMI. The stress × sleep interaction is a significant predictor in the model. Better sleep can partially offset stress effects.',
-        impact: 'Low',
+        impact: t('forecaster.impactLow'),
         color: '#F59E0B',
       });
     }
@@ -346,7 +348,7 @@ export default function HealthForecaster() {
         priority: 2,
         title: 'Reduce Calorie Intake',
         desc: `Your daily intake of ${calories} kcal creates a +${calories - idealCalories} kcal surplus over your ideal daily target (${idealCalories} kcal). Consider reducing to stay close to your ideal dynamic target.`,
-        impact: 'Medium',
+        impact: t('forecaster.impactMedium'),
         color: '#F97316',
       });
     } else if (calories < idealCalories - 300) {
@@ -354,7 +356,7 @@ export default function HealthForecaster() {
         priority: 2,
         title: 'Increase Calorie Intake',
         desc: `Your daily intake of ${calories} kcal is ${idealCalories - calories} kcal below your ideal daily target (${idealCalories} kcal). Consider eating more to support your health goals.`,
-        impact: 'Medium',
+        impact: t('forecaster.impactMedium'),
         color: '#F97316',
       });
     }
@@ -364,7 +366,7 @@ export default function HealthForecaster() {
         priority: 4,
         title: 'Limit Alcohol Consumption',
         desc: `Your alcohol rate is ${alcohol}/5. Population data shows alcohol has a minor correlation with BMI (Cohen's d = 0.18). Reducing consumption helps prevent unnecessary calorie surplus.`,
-        impact: 'Low',
+        impact: t('forecaster.impactLow'),
         color: '#F59E0B',
       });
     }
@@ -374,13 +376,13 @@ export default function HealthForecaster() {
         priority: 0,
         title: 'Great Lifestyle Balance!',
         desc: 'Your current lifestyle parameters align well with the optimal ranges identified in the population study. Keep maintaining these habits.',
-        impact: 'Positive',
+        impact: t('forecaster.impactPositive'),
         color: '#10B981',
       });
     }
 
     return recs.sort((a, b) => a.priority - b.priority);
-  }, [calories, fatTotal, sleepHours, stressLevel, exerciseFreq, dietQuality, smoker, alcohol, idealCalories]);
+  }, [calories, fatTotal, sleepHours, stressLevel, exerciseFreq, dietQuality, smoker, alcohol, idealCalories, t]);
 
 
 
@@ -392,21 +394,21 @@ export default function HealthForecaster() {
   };
 
   const getScoreLabel = (score) => {
-    if (score >= 85) return 'Excellent Synergy';
-    if (score >= 70) return 'Good Synergy';
-    if (score >= 50) return 'Moderate Synergy';
-    return 'Low Synergy';
+    if (score >= 85) return t('forecaster.excellent');
+    if (score >= 70) return t('forecaster.good');
+    if (score >= 50) return t('forecaster.moderate');
+    return t('forecaster.low');
   };
 
   const getScoreDescription = (score) => {
     if (score >= 85) {
-      return "Excellent synergy! Your lifestyle habits are highly optimized and work together to support a healthy BMI.";
+      return t('forecaster.excellentDesc');
     } else if (score >= 70) {
-      return "Good synergy! Your habits are mostly healthy, with minor areas of optimization to boost your metabolic health.";
+      return t('forecaster.goodDesc');
     } else if (score >= 50) {
-      return "Moderate synergy. Some conflicting habits are offsetting each other. Consider adjusting the risk indicators listed below.";
+      return t('forecaster.moderateDesc');
     } else {
-      return "Low synergy. High-risk habits are compounding, putting you at risk. Follow the strategic recommendations to make impactful changes.";
+      return t('forecaster.lowDesc');
     }
   };
 
@@ -419,9 +421,9 @@ export default function HealthForecaster() {
           <div>
             <h1 className="text-3xl font-black text-gray-900 mb-1.5 tracking-tight flex items-center gap-2.5">
               <Activity className="w-8 h-8 text-brand-orange animate-pulse" />
-              Lifestyle Synergy Simulator
+              {t('forecaster.title')}
             </h1>
-            <p className="text-gray-500 text-sm">Analyze your lifestyle habits in real-time with population-based analytics, synergy scoring, and evidence-based strategic recommendations.</p>
+            <p className="text-gray-500 text-sm">{t('forecaster.subtitle')}</p>
           </div>
         </header>
 
@@ -434,25 +436,28 @@ export default function HealthForecaster() {
               <div>
                 <h2 className="text-lg font-bold text-gray-900 mb-5 flex items-center gap-2">
                   <Utensils className="w-4 h-4 text-brand-orange" />
-                  Lifestyle Parameters
+                  {t('forecaster.parameters')}
                 </h2>
                 
                 <div className="space-y-5">
                   <div className="grid grid-cols-2 gap-4 bg-slate-50/50 p-4.5 rounded-2xl border border-slate-100/80">
                     <div className="col-span-2 flex items-center justify-between">
-                      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Personal Profile</h3>
+                      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">{t('forecaster.profile')}</h3>
                     </div>
                     <div>
-                      <label className="block text-[11px] font-bold text-gray-600 mb-1">Gender</label>
+                      <label className="block text-[11px] font-bold text-gray-600 mb-1">{t('forecaster.gender')}</label>
                       <CustomSelect
                         name="gender"
                         value={gender}
                         onChange={(e) => setGender(e.target.value)}
-                        options={['Male', 'Female']}
+                        options={[
+                          { value: 'Male', label: t('common.male') },
+                          { value: 'Female', label: t('common.female') },
+                        ]}
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-bold text-gray-600 mb-1">Age (years)</label>
+                      <label className="block text-[11px] font-bold text-gray-600 mb-1">{t('forecaster.ageYears')}</label>
                       <input 
                         type="number" 
                         value={age} 
@@ -464,7 +469,7 @@ export default function HealthForecaster() {
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-bold text-gray-600 mb-1">Height (cm)</label>
+                      <label className="block text-[11px] font-bold text-gray-600 mb-1">{t('forecaster.heightCm')}</label>
                       <input 
                         type="number" 
                         value={heightCm} 
@@ -476,7 +481,7 @@ export default function HealthForecaster() {
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-bold text-gray-600 mb-1">Weight (kg)</label>
+                      <label className="block text-[11px] font-bold text-gray-600 mb-1">{t('forecaster.weightKg')}</label>
                       <input 
                         type="number" 
                         value={weightKg} 
@@ -515,7 +520,7 @@ export default function HealthForecaster() {
                         <div className="text-[9px] text-gray-400">kcal</div>
                       </div>
                       <div className="bg-white rounded-xl p-2 border border-slate-100 text-center ring-2 ring-brand-orange/20">
-                        <div className="text-[9px] font-bold text-brand-orange uppercase">Ideal Target</div>
+                        <div className="text-[9px] font-bold text-brand-orange uppercase">{t('forecaster.idealCalories')}</div>
                         <div className="text-xs font-black text-brand-orange mt-0.5">{idealCalories.toLocaleString()}</div>
                         <div className="text-[9px] text-brand-orange/80">kcal</div>
                       </div>
@@ -532,7 +537,7 @@ export default function HealthForecaster() {
                   <div className="space-y-3">
                     <div>
                       <div className="flex justify-between mb-1.5">
-                        <label className="text-xs font-semibold text-gray-700">Daily Calories</label>
+                        <label className="text-xs font-semibold text-gray-700">{t('forecaster.dailyCalories')}</label>
                         <span className="text-xs font-bold text-brand-orange">{calories.toLocaleString()} kcal</span>
                       </div>
                       <CustomSlider 
@@ -545,7 +550,7 @@ export default function HealthForecaster() {
 
                     <div>
                       <div className="flex justify-between mb-1.5">
-                        <label className="text-xs font-semibold text-gray-700">Daily Fat (g)</label>
+                        <label className="text-xs font-semibold text-gray-700">{t('forecaster.dailyFat')} (g)</label>
                         <span className="text-xs font-bold text-red-400">{fatTotal} g</span>
                       </div>
                       <CustomSlider 
@@ -558,7 +563,7 @@ export default function HealthForecaster() {
 
                     <div>
                       <div className="flex justify-between mb-1.5">
-                        <label className="text-xs font-semibold text-gray-700">Sleep Hours</label>
+                        <label className="text-xs font-semibold text-gray-700">{t('forecaster.sleepHours')}</label>
                         <span className="text-xs font-bold text-blue-500">{sleepHours}h</span>
                       </div>
                       <CustomSlider 
@@ -571,7 +576,7 @@ export default function HealthForecaster() {
 
                     <div>
                       <div className="flex justify-between mb-1.5">
-                        <label className="text-xs font-semibold text-gray-700">Stress Level</label>
+                        <label className="text-xs font-semibold text-gray-700">{t('forecaster.stressLevel')}</label>
                         <span className="text-xs font-bold text-purple-500">{stressLevel}/10</span>
                       </div>
                       <CustomSlider 
@@ -584,7 +589,7 @@ export default function HealthForecaster() {
 
                     <div>
                       <div className="flex justify-between mb-1.5">
-                        <label className="text-xs font-semibold text-gray-700">Exercise (times/week)</label>
+                        <label className="text-xs font-semibold text-gray-700">{t('forecaster.exerciseFreq')}</label>
                         <span className="text-xs font-bold text-cyan-500">{exerciseFreq}x</span>
                       </div>
                       <CustomSlider 
@@ -598,7 +603,7 @@ export default function HealthForecaster() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1.5">Diet Quality</label>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1.5">{t('forecaster.dietQuality')}</label>
                       <CustomSelect
                         name="diet_quality"
                         value={String(dietQuality)}
@@ -608,7 +613,7 @@ export default function HealthForecaster() {
                       <p className="text-[10px] text-gray-400 mt-1">1 = Poor, 5 = Excellent</p>
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1.5">Alcohol Rate</label>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1.5">{t('forecaster.alcohol')}</label>
                       <CustomSelect
                         name="alcohol"
                         value={String(alcohol)}
@@ -627,7 +632,7 @@ export default function HealthForecaster() {
                       onChange={(e) => setSmoker(e.target.checked)}
                       className="w-4 h-4 accent-brand-orange rounded" 
                     />
-                    <label htmlFor="smoker" className="text-xs font-semibold text-gray-700 cursor-pointer">Smoker</label>
+                    <label htmlFor="smoker" className="text-xs font-semibold text-gray-700 cursor-pointer">{t('forecaster.smoker')}</label>
                   </div>
                 </div>
               </div>
@@ -645,7 +650,7 @@ export default function HealthForecaster() {
                 <div>
                   <div className="flex items-center gap-2 mb-4">
                     <Sparkles className="w-4 h-4 text-amber-500 animate-pulse" />
-                    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Lifestyle Synergy Score</h3>
+                    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">{t('forecaster.synergyScore')}</h3>
                   </div>
                   <div className="flex items-center gap-5">
                     <div className="relative w-24 h-24 flex-shrink-0">
@@ -682,7 +687,7 @@ export default function HealthForecaster() {
                 <div>
                   <div className="flex items-center gap-2 mb-4">
                     <Shield className="w-4 h-4 text-emerald-500" />
-                    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Risk Indicators</h3>
+                    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">{t('forecaster.riskIndicators')}</h3>
                   </div>
                   <div className="space-y-2 max-h-[120px] overflow-y-auto pr-1">
                     {riskFactors.map((rf, i) => {
@@ -709,9 +714,9 @@ export default function HealthForecaster() {
               <div className="col-span-12 md:col-span-6 bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
                 <div className="flex items-center gap-2 mb-4">
                   <BarChart3 className="w-4 h-4 text-indigo-500" />
-                  <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Feature Impact on BMI</h3>
+                  <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">{t('forecaster.featureImpact')}</h3>
                 </div>
-                <p className="text-[10px] text-gray-400 mb-3.5">Random Forest model feature importance (R²=0.28)</p>
+                <p className="text-[10px] text-gray-400 mb-3.5">{t('forecaster.featureImpactBody')}</p>
                 <div className="space-y-2 max-h-[175px] overflow-y-auto pr-1">
                   {FEATURE_IMPORTANCE.map((feat) => {
                     const Icon = feat.icon;
@@ -740,9 +745,9 @@ export default function HealthForecaster() {
               <div className="col-span-12 md:col-span-6 bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
                 <div className="flex items-center gap-2 mb-4">
                   <Brain className="w-4 h-4 text-violet-500" />
-                  <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Engineered Features</h3>
+                  <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">{t('forecaster.engineeredFeatures')}</h3>
                 </div>
-                <p className="text-[10px] text-gray-400 mb-3.5">Derived features used in the ML model — computed in real-time</p>
+                <p className="text-[10px] text-gray-400 mb-3.5">{t('forecaster.engineeredBody')}</p>
                 <div className="grid grid-cols-2 gap-3">
                   {[
                     { label: 'Fat Ratio', value: `${(derivedFeatures.fatRatio * 100).toFixed(1)}%`, sub: '#1 predictor', warn: derivedFeatures.fatRatio > 0.35 },
@@ -765,9 +770,9 @@ export default function HealthForecaster() {
             <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
               <div className="flex items-center gap-2 mb-4">
                 <Target className="w-4 h-4 text-orange-500 animate-pulse" />
-                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Strategic Recommendations</h3>
+                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">{t('forecaster.recommendations')}</h3>
               </div>
-              <p className="text-[10px] text-gray-400 mb-4">Based on A/B testing (n=7,490) · Mann-Whitney U test · α=0.05</p>
+              <p className="text-[10px] text-gray-400 mb-4">{t('forecaster.recommendationsBody')}</p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {recommendations.map((rec, i) => (
@@ -795,9 +800,9 @@ export default function HealthForecaster() {
           <div className="border-b border-gray-150 pb-3 mb-6">
             <h2 className="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
               <Brain className="w-5 h-5 text-indigo-500" />
-              Lifestyle & Methodology Knowledge Base
+              {t('forecaster.knowledgeTitle')}
             </h2>
-            <p className="text-xs text-gray-500 mt-1">Learn more about the metabolic factors, formulas, and statistical evidence backing the Synergy score.</p>
+            <p className="text-xs text-gray-500 mt-1">{t('forecaster.knowledgeBody')}</p>
           </div>
 
           {[

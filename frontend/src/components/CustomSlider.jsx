@@ -1,5 +1,3 @@
-import React from 'react';
-
 export default function CustomSlider({ min = 0, max = 100, step = 1, value, onChange, colorClass, thumbColorHex }) {
   // Prevent division by zero and ensure percentage is clamped between 0 and 100
   const range = max - min;

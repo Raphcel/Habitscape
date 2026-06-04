@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import CustomSelect from '../components/CustomSelect';
 
 export default function Profile() {
-  const { user, updateProfile, loading, error, setError } = useAuth();
+  const { t } = useTranslation();
+  const { user, updateProfile, loading, error } = useAuth();
 
   const [formData, setFormData] = useState({
     name: user?.name || '',
@@ -28,7 +30,7 @@ export default function Profile() {
     setSuccessMsg('');
     const result = await updateProfile(formData);
     if (result.success) {
-      setSuccessMsg('Profile updated successfully!');
+      setSuccessMsg(t('profile.success'));
       setTimeout(() => setSuccessMsg(''), 3000);
     }
   };
@@ -37,8 +39,8 @@ export default function Profile() {
     <main className="flex-1 p-8 min-h-screen font-sans">
       <div className="max-w-3xl">
         <header className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-1">Your Profile</h1>
-          <p className="text-gray-500">Update your personal metrics to ensure accurate health tracking.</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-1">{t('profile.title')}</h1>
+          <p className="text-gray-500">{t('profile.subtitle')}</p>
         </header>
 
         <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
@@ -55,7 +57,7 @@ export default function Profile() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Full Name</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">{t('profile.fullName')}</label>
               <input 
                 type="text" 
                 name="name"
@@ -68,7 +70,7 @@ export default function Profile() {
 
             <div className="grid grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Age</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">{t('profile.age')}</label>
                 <input 
                   type="number" 
                   name="age"
@@ -79,19 +81,22 @@ export default function Profile() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Gender</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">{t('profile.gender')}</label>
                 <CustomSelect
                   name="gender"
                   value={formData.gender}
                   onChange={handleChange}
-                  options={['Male', 'Female']}
+                  options={[
+                    { value: 'Male', label: t('common.male') },
+                    { value: 'Female', label: t('common.female') },
+                  ]}
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Height (cm)</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">{t('profile.height')}</label>
                 <input 
                   type="number" 
                   name="height_cm"
@@ -102,7 +107,7 @@ export default function Profile() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Weight (kg)</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">{t('profile.weight')}</label>
                 <input 
                   type="number" 
                   name="weight_kg"
@@ -115,7 +120,7 @@ export default function Profile() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Daily Calorie Goal (kcal)</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">{t('profile.calorieGoal')}</label>
               <input 
                 type="number" 
                 name="calorie_goal"
@@ -132,7 +137,7 @@ export default function Profile() {
                 disabled={loading}
                 className="bg-brand-orange hover:bg-brand-orange-dark text-white font-bold py-3 px-8 rounded-xl transition-all shadow-lg shadow-orange-200 disabled:opacity-60"
               >
-                {loading ? 'Saving...' : 'Save Changes'}
+                {loading ? t('common.saving') : t('profile.saveChanges')}
               </button>
             </div>
           </form>
