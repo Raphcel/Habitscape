@@ -43,7 +43,7 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
             <div className="flex items-center gap-2">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2D3134" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              <img src="/Habitscape logo.png" alt="Habitscape Logo" className="w-8 h-8 object-contain drop-shadow-sm" />
               <span className="font-extrabold text-xl tracking-tight text-[#2D3134]">Habitscape</span>
             </div>
             <div className="hidden md:flex space-x-10 relative">
@@ -294,7 +294,7 @@ const LandingPage = () => {
       <footer className="bg-[#F8FAF5] py-12 px-4 sm:px-6 lg:px-8 border-t border-gray-100">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-2">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#326955" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            <img src="/Habitscape logo.png" alt="Habitscape Logo" className="w-7 h-7 object-contain opacity-90" />
             <span className="font-extrabold text-lg text-[#326955] tracking-tight">Habitscape</span>
           </div>
           <div className="flex flex-wrap justify-center gap-6 text-sm font-semibold text-gray-500">

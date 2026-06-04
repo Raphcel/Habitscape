@@ -30,8 +30,8 @@ const Login = () => {
             className="absolute inset-0 w-full h-full object-cover opacity-80 mix-blend-overlay"
           />
           <div className="relative z-10 glass-panel p-8 rounded-3xl text-center max-w-[320px] backdrop-blur-md bg-white/20 border border-white/30 shadow-2xl">
-            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-6 text-brand-orange shadow-lg">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            <div className="mx-auto mb-6 flex justify-center">
+              <img src="/Habitscape logo.png" alt="Habitscape Logo" className="w-20 h-20 drop-shadow-xl" />
             </div>
             <h2 className="text-3xl font-extrabold text-white mb-2 font-sans tracking-tight">Habitscape</h2>
             <p className="text-white/90 text-sm font-medium leading-relaxed">Your proactive AI Health Guard.</p>

@@ -41,15 +41,11 @@ export default function Sidebar({ isOpen, setIsOpen }) {
       {/* Header */}
       <div className={`p-4 flex items-center ${isOpen ? 'justify-between' : 'justify-center flex-col gap-4'}`}>
         <div className={`flex items-center gap-2 ${!isOpen && 'hidden'}`}>
-          <div className="w-6 h-6 bg-brand-orange rounded-full flex items-center justify-center shrink-0">
-            <div className="w-3 h-3 bg-white rounded-full"></div>
-          </div>
+          <img src="/Habitscape logo.png" alt="Habitscape Logo" className="w-7 h-7 shrink-0 drop-shadow-sm" />
           <span className="font-extrabold text-brand-orange text-xl tracking-tight whitespace-nowrap">Habitscape</span>
         </div>
         {!isOpen && (
-          <div className="w-6 h-6 bg-brand-orange rounded-full flex items-center justify-center shrink-0" title="Habitscape">
-            <div className="w-3 h-3 bg-white rounded-full"></div>
-          </div>
+          <img src="/Habitscape logo.png" alt="Habitscape Logo" className="w-7 h-7 shrink-0 drop-shadow-sm" title="Habitscape" />
         )}
         <button onClick={() => setIsOpen(!isOpen)} className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-gray-900 transition-colors">
           {isOpen ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Activity, AlertCircle, Brain, Camera, Droplets, Edit, Loader2, RefreshCw, Sparkles, Utensils, UtensilsCrossed, Zap } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Activity, AlertCircle, Brain, Camera, Droplets, Droplet, Edit, Loader2, RefreshCw, Sparkles, Utensils, UtensilsCrossed, Zap, PersonStanding, BellDot, BatteryCharging } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -191,6 +192,7 @@ function AiSummarizationCard({ date, recap, error, isLoading, isGenerating, onRe
 
 export default function Dashboard() {
   const { user, updateProfile } = useAuth();
+  const navigate = useNavigate();
   const [showWeightReminder, setShowWeightReminder] = useState(false);
   const [weightInput, setWeightInput] = useState('');
   const [isSubmittingWeight, setIsSubmittingWeight] = useState(false);
@@ -200,11 +202,17 @@ export default function Dashboard() {
   const [isRecapGenerating, setIsRecapGenerating] = useState(false);
   const todayDate = formatDateKey(new Date());
 
+  const [foodLogs, setFoodLogs] = useState([]);
+  const [todayMacros, setTodayMacros] = useState({ calories: 0, protein: 0, carbs: 0, fat: 0 });
+
+  const GOALS = { calories: 2200, protein: 150, carbs: 250, fat: 70 };
+
   useEffect(() => {
-    const checkWeightLog = async () => {
+    const fetchData = async () => {
       try {
-        const { data } = await api.get('/weight');
-        const history = data.data;
+        // Fetch weight
+        const { data: weightData } = await api.get('/weight');
+        const history = weightData.data;
         if (!history || history.length === 0) {
           setShowWeightReminder(true);
         } else {
@@ -220,8 +228,30 @@ export default function Dashboard() {
       } catch (err) {
         console.error('Failed to fetch weight history', err);
       }
+
+      try {
+        // Fetch today's food logs
+        const today = new Date().toISOString().split('T')[0];
+        const { data: foodResponse } = await api.get(`/food-logs?date=${today}&limit=10`);
+        const logs = foodResponse.data?.data || [];
+        
+        // Calculate macros
+        const macros = logs.reduce((acc, log) => {
+          return {
+            calories: acc.calories + Number(log.calories || 0),
+            protein: acc.protein + Number(log.protein || 0),
+            carbs: acc.carbs + Number(log.carbs || 0),
+            fat: acc.fat + Number(log.fat || 0),
+          };
+        }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
+        
+        setFoodLogs(logs);
+        setTodayMacros(macros);
+      } catch (err) {
+        console.error('Failed to fetch food logs', err);
+      }
     };
-    checkWeightLog();
+    fetchData();
   }, []);
 
   const handleWeightSubmit = async (e) => {
@@ -365,11 +395,11 @@ export default function Dashboard() {
                   <span className="text-gray-600 font-medium text-lg">Daily Nutrition Goal</span>
                   <div className="flex items-baseline gap-1">
                     <span className="text-gray-500 text-xs">Calories (kcal)</span>
-                    <span className="font-semibold text-lg">1,450 / 2,200</span>
+                    <span className="font-semibold text-lg">{todayMacros.calories} / {GOALS.calories}</span>
                   </div>
                 </div>
                 <div className="h-3 w-full bg-orange-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-brand-orange rounded-full" style={{ width: '65%' }}></div>
+                  <div className="h-full bg-brand-orange rounded-full" style={{ width: `${Math.min(100, (todayMacros.calories / GOALS.calories) * 100)}%` }}></div>
                 </div>
               </div>
 
@@ -377,30 +407,30 @@ export default function Dashboard() {
                 <div>
                   <div className="flex justify-between text-xs mb-1">
                     <span className="text-gray-500">Protein (g)</span>
-                    <span className="font-semibold">85 / 150</span>
+                    <span className="font-semibold">{Math.round(todayMacros.protein)} / {GOALS.protein}</span>
                   </div>
                   <div className="h-2 w-full bg-blue-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-600 rounded-full" style={{ width: '56%' }}></div>
+                    <div className="h-full bg-blue-600 rounded-full" style={{ width: `${Math.min(100, (todayMacros.protein / GOALS.protein) * 100)}%` }}></div>
                   </div>
                 </div>
 
                 <div>
                   <div className="flex justify-between text-xs mb-1">
                     <span className="text-gray-500">Carbs (g)</span>
-                    <span className="font-semibold">120 / 250</span>
+                    <span className="font-semibold">{Math.round(todayMacros.carbs)} / {GOALS.carbs}</span>
                   </div>
                   <div className="h-2 w-full bg-teal-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-teal-600 rounded-full" style={{ width: '48%' }}></div>
+                    <div className="h-full bg-teal-600 rounded-full" style={{ width: `${Math.min(100, (todayMacros.carbs / GOALS.carbs) * 100)}%` }}></div>
                   </div>
                 </div>
 
                 <div>
                   <div className="flex justify-between text-xs mb-1">
                     <span className="text-gray-500">Fats (g)</span>
-                    <span className="font-semibold">45 / 70</span>
+                    <span className="font-semibold">{Math.round(todayMacros.fat)} / {GOALS.fat}</span>
                   </div>
                   <div className="h-2 w-full bg-orange-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-orange-800 rounded-full" style={{ width: '64%' }}></div>
+                    <div className="h-full bg-orange-800 rounded-full" style={{ width: `${Math.min(100, (todayMacros.fat / GOALS.fat) * 100)}%` }}></div>
                   </div>
                 </div>
               </div>
@@ -456,51 +486,51 @@ export default function Dashboard() {
         <section className="bg-white rounded-2xl p-6 shadow-sm border border-orange-50">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-bold text-gray-900">Recently Logged</h2>
-            <button className="bg-brand-orange hover:bg-brand-orange-dark text-white font-medium py-2 px-5 rounded-full transition-colors shadow-lg shadow-orange-200 text-sm flex items-center gap-2 active:scale-95">
-              <Camera className="w-4 h-4" /> Scan Meal
+            <button 
+              onClick={() => navigate('/app/snapfood')}
+              className="bg-brand-orange hover:bg-brand-orange-dark text-white font-medium py-2 px-5 rounded-full transition-colors shadow-lg shadow-orange-200 text-sm flex items-center gap-2 active:scale-95"
+            >
+              <Camera className="w-4 h-4" /> Snap Meal
             </button>
           </div>
 
           <div className="grid grid-cols-2 gap-5">
-            <div className="rounded-2xl overflow-hidden border border-gray-100 group bg-white shadow-sm hover:shadow-md transition-shadow cursor-pointer">
-              <div className="h-36 bg-gray-200 w-full overflow-hidden">
-                <img src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Grilled Chicken Salad" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+            {foodLogs.length === 0 ? (
+              <div className="col-span-2 py-8 text-center text-gray-500 font-medium">
+                No meals logged today yet. Snap your first meal!
               </div>
-              <div className="p-4">
-                <div className="flex justify-between items-baseline mb-2">
-                  <h3 className="font-semibold text-gray-900 truncate pr-2">Grilled Chicken Salad</h3>
-                  <span className="text-gray-400 text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">12:30 PM</span>
-                </div>
-                <div className="flex items-center gap-3 text-xs">
-                  <span className="font-bold text-brand-orange bg-orange-50 px-2.5 py-1 rounded-md">340 kcal</span>
-                  <div className="flex gap-2.5 text-gray-500 font-medium">
-                    <span>P:42g</span>
-                    <span>C:12g</span>
-                    <span>F:14g</span>
+            ) : (
+              foodLogs.slice(0, 2).map((log) => (
+                <div key={log.id} className="rounded-2xl overflow-hidden border border-gray-100 group bg-white shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+                  <div className="h-36 bg-gray-200 w-full overflow-hidden relative">
+                    {log.image_url ? (
+                      <img src={log.image_url} alt={log.meal_name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center bg-orange-50 text-brand-orange/50 group-hover:scale-105 transition-transform duration-500">
+                        <Utensils className="w-10 h-10 mb-2" />
+                        <span className="text-xs font-semibold uppercase tracking-wider">No Photo</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-4">
+                    <div className="flex justify-between items-baseline mb-2">
+                      <h3 className="font-semibold text-gray-900 truncate pr-2" title={log.meal_name}>{log.meal_name}</h3>
+                      <span className="text-gray-400 text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">
+                        {new Date(log.logged_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs">
+                      <span className="font-bold text-brand-orange bg-orange-50 px-2.5 py-1 rounded-md">{log.calories} kcal</span>
+                      <div className="flex gap-2.5 text-gray-500 font-medium">
+                        <span>P:{Math.round(log.protein)}g</span>
+                        <span>C:{Math.round(log.carbs)}g</span>
+                        <span>F:{Math.round(log.fat)}g</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl overflow-hidden border border-gray-100 group bg-white shadow-sm hover:shadow-md transition-shadow cursor-pointer">
-              <div className="h-36 bg-gray-200 w-full overflow-hidden">
-                <img src="https://images.unsplash.com/photo-1494597564530-871f2b93ac55?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Acai Breakfast Bowl" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-              </div>
-              <div className="p-4">
-                <div className="flex justify-between items-baseline mb-2">
-                  <h3 className="font-semibold text-gray-900 truncate pr-2">Acai Breakfast Bowl</h3>
-                  <span className="text-gray-400 text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">12:23 PM</span>
-                </div>
-                <div className="flex items-center gap-3 text-xs">
-                  <span className="font-bold text-brand-orange bg-orange-50 px-2.5 py-1 rounded-md">410 kcal</span>
-                  <div className="flex gap-2.5 text-gray-500 font-medium">
-                    <span>P:8g</span>
-                    <span>C:65g</span>
-                    <span>F:12g</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+              ))
+            )}
           </div>
         </section>
 

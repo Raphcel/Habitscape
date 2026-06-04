@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, Edit2, Trash2, Camera, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Edit2, Trash2, Camera, Loader2, Search } from 'lucide-react';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -21,10 +21,15 @@ export default function History() {
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({ meal_name: '', calories: 0, protein: 0, carbs: 0, fat: 0 });
 
+  // Pagination & Search
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 4;
+
   const fetchFoodLogs = useCallback(async () => {
     try {
       setIsLoading(true);
-      const res = await api.get('/food-logs');
+      const res = await api.get('/food-logs?limit=100'); // Fetch enough logs for historical data chart
       setFoodLogs(res.data.data.data);
     } catch (err) {
       console.error('Failed to fetch food logs:', err);
@@ -125,58 +130,87 @@ export default function History() {
   };
 
 
-  const getHeaderString = () => {
-    if (viewMode === 'Weekly') {
-      const baseDate = new Date('2023-11-18T12:00:00Z'); // Fixed Saturday base
-      baseDate.setDate(baseDate.getDate() + weekOffset * 7);
-      const startDate = new Date(baseDate);
-      startDate.setDate(startDate.getDate() - 6);
-
-      const options = { month: 'short', day: 'numeric' };
-      const endDate = new Date(baseDate);
-      const startStr = startDate.toLocaleDateString('en-US', options);
-      const endStr = endDate.toLocaleDateString('en-US', { ...options, year: 'numeric' });
-      return `${startStr} - ${endStr}`;
-    } else {
-      const baseDate = new Date(2023, 10, 1); // Nov 2023
-      baseDate.setMonth(baseDate.getMonth() + monthOffset);
-      return baseDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    }
-  };
-
   const isWeekly = viewMode === 'Weekly';
   
-  let daysInMonth = 30;
-  if (!isWeekly) {
-    const baseDate = new Date(2023, 10, 1);
-    baseDate.setMonth(baseDate.getMonth() + monthOffset);
-    daysInMonth = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 0).getDate();
-  }
-  
-  const dataLength = isWeekly ? 7 : daysInMonth;
+  // Date calculations based on REAL current time
+  const now = new Date();
+  let startDate = new Date(now);
+  let daysInView = 7;
+  let chartLabels = [];
+  let dateRange = [];
 
-  // Generate slightly different data based on offset to simulate data changes
-  const generateData = (baseData) => {
-    const result = [];
-    for (let i = 0; i < dataLength; i++) {
-      const baseVal = baseData[i % baseData.length];
-      const offset = isWeekly ? weekOffset : monthOffset;
-      // Deterministic pseudo-random variation between -20 and +20
-      const variation = Math.sin(offset * 13 + i * 7) * 20;
-      result.push(Math.max(10, Math.min(100, baseVal + variation)));
+  if (isWeekly) {
+    startDate.setDate(now.getDate() + weekOffset * 7);
+    const dayOfWeek = startDate.getDay(); // 0 is Sunday
+    startDate.setDate(startDate.getDate() - dayOfWeek);
+    startDate.setHours(0, 0, 0, 0);
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(startDate);
+      d.setDate(startDate.getDate() + i);
+      dateRange.push(d);
     }
-    return result;
+    chartLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  } else {
+    startDate.setMonth(now.getMonth() + monthOffset);
+    startDate.setDate(1); // 1st of the month
+    startDate.setHours(0, 0, 0, 0);
+    daysInView = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0).getDate();
+
+    for (let i = 0; i < daysInView; i++) {
+      const d = new Date(startDate);
+      d.setDate(1 + i);
+      dateRange.push(d);
+      chartLabels.push((i + 1) % 7 === 1 ? (i + 1).toString() : '');
+    }
+  }
+
+  const getHeaderString = () => {
+    const options = { month: 'short', day: 'numeric' };
+    if (isWeekly) {
+      const endDate = new Date(dateRange[6]);
+      return `${dateRange[0].toLocaleDateString('en-US', options)} - ${endDate.toLocaleDateString('en-US', { ...options, year: 'numeric' })}`;
+    } else {
+      return startDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    }
   };
 
-  const calData = generateData([40, 60, 55, 30, 45, 20, 80]);
-  const proData = generateData([50, 40, 65, 35, 50, 30, 85]);
-  const carData = generateData([60, 50, 45, 30, 40, 35, 60]);
-  const fatData = generateData([45, 55, 60, 40, 55, 50, 90]);
-
-  const labels = isWeekly 
-    ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-    : Array.from({ length: daysInMonth }, (_, i) => ((i + 1) % 7 === 1 ? (i + 1).toString() : ''));
+  // --- Real Data Aggregation ---
+  const GOALS = { cal: 2200, pro: 160, car: 250, fat: 70 };
+  
+  const dailySums = dateRange.map(date => {
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const dateString = `${yyyy}-${mm}-${dd}`;
     
+    const dayLogs = foodLogs.filter(log => {
+      const logDate = new Date(log.logged_at);
+      const logYyyy = logDate.getFullYear();
+      const logMm = String(logDate.getMonth() + 1).padStart(2, '0');
+      const logDd = String(logDate.getDate()).padStart(2, '0');
+      return `${logYyyy}-${logMm}-${logDd}` === dateString;
+    });
+
+    return dayLogs.reduce((acc, log) => ({
+      cal: acc.cal + Number(log.calories || 0),
+      pro: acc.pro + Number(log.protein || 0),
+      car: acc.car + Number(log.carbs || 0),
+      fat: acc.fat + Number(log.fat || 0)
+    }), { cal: 0, pro: 0, car: 0, fat: 0 });
+  });
+
+  const calData = dailySums.map(sum => Math.min(100, (sum.cal / GOALS.cal) * 100));
+  const proData = dailySums.map(sum => Math.min(100, (sum.pro / GOALS.pro) * 100));
+  const carData = dailySums.map(sum => Math.min(100, (sum.car / GOALS.car) * 100));
+  const fatData = dailySums.map(sum => Math.min(100, (sum.fat / GOALS.fat) * 100));
+
+  const avgCal = Math.round(dailySums.reduce((acc, sum) => acc + sum.cal, 0) / daysInView);
+  const avgPro = Math.round(dailySums.reduce((acc, sum) => acc + sum.pro, 0) / daysInView);
+  const avgCar = Math.round(dailySums.reduce((acc, sum) => acc + sum.car, 0) / daysInView);
+  const avgFat = Math.round(dailySums.reduce((acc, sum) => acc + sum.fat, 0) / daysInView);
+
+  const labels = chartLabels;
   const barWidthClass = isWeekly ? 'w-8' : 'w-1.5';
   const barGapClass = isWeekly ? 'gap-3' : 'gap-1';
   
@@ -215,6 +249,17 @@ export default function History() {
        svgFill = `${svgPath} L${width},${height} L0,${height} Z`;
     }
   }
+
+  // --- Search and Pagination Logic ---
+  const filteredLogs = foodLogs.filter(log => 
+    (log.meal_name || '').toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
+  const currentLogs = filteredLogs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   return (
     <main className="flex-1 p-8 min-h-screen">
@@ -265,7 +310,7 @@ export default function History() {
                   Calories
                 </div>
                 <div className="text-xs text-gray-400 font-medium">
-                  Goal: <span className="text-green-500">2,200 Kcal</span> &nbsp;&nbsp; Avg: <span className="text-gray-900 font-bold">1,840 Kcal</span>
+                  Goal: <span className="text-green-500">2,200 Kcal</span> &nbsp;&nbsp; Avg: <span className="text-gray-900 font-bold">{avgCal} Kcal</span>
                 </div>
               </div>
               <div className="relative h-40 flex items-end justify-between pl-2 pr-12">
@@ -275,8 +320,11 @@ export default function History() {
                 
                 {labels.map((label, i) => (
                   <div key={'cal' + i} className={`flex flex-col items-center ${barGapClass} z-10 ${barWidthClass}`}>
-                    <div className="w-full h-32 bg-gray-100 rounded-full relative overflow-hidden">
-                      <div className={`absolute bottom-0 w-full rounded-full transition-all duration-700 ease-out ${(isWeekly && i === 6) || (!isWeekly && i === daysInMonth - 1) ? 'bg-brand-orange' : 'bg-gray-200'}`} style={{ height: `${calData[i]}%` }}></div>
+                    <div className="w-full h-32 bg-gray-100 rounded-full relative overflow-hidden group">
+                      <div className={`absolute bottom-0 w-full rounded-full transition-all duration-700 ease-out ${calData[i] > 0 ? 'bg-brand-orange' : 'bg-gray-200'}`} style={{ height: `${calData[i]}%` }}></div>
+                      <div className="absolute opacity-0 group-hover:opacity-100 bg-gray-800 text-white text-[10px] rounded px-1.5 py-0.5 bottom-full mb-1 left-1/2 -translate-x-1/2 pointer-events-none whitespace-nowrap z-50">
+                        {dailySums[i].cal} kcal
+                      </div>
                     </div>
                     <span className={`text-gray-400 ${isWeekly ? 'text-xs' : 'text-[10px]'}`}>{label}</span>
                   </div>
@@ -294,7 +342,7 @@ export default function History() {
                   Protein
                 </div>
                 <div className="text-xs text-gray-400 font-medium">
-                  Goal: <span className="text-green-500">160g</span> &nbsp;&nbsp; Avg: <span className="text-gray-900 font-bold">142g</span>
+                  Goal: <span className="text-green-500">160g</span> &nbsp;&nbsp; Avg: <span className="text-gray-900 font-bold">{avgPro}g</span>
                 </div>
               </div>
               <div className="relative h-40 flex items-end justify-between pl-2 pr-12">
@@ -303,8 +351,11 @@ export default function History() {
                 
                 {labels.map((label, i) => (
                   <div key={'pro' + i} className={`flex flex-col items-center ${barGapClass} z-10 ${barWidthClass}`}>
-                    <div className="w-full h-32 bg-gray-100 rounded-full relative overflow-hidden">
-                      <div className={`absolute bottom-0 w-full rounded-full transition-all duration-700 ease-out ${(isWeekly && i === 6) || (!isWeekly && i === daysInMonth - 1) ? 'bg-blue-500' : 'bg-gray-200'}`} style={{ height: `${proData[i]}%` }}></div>
+                    <div className="w-full h-32 bg-gray-100 rounded-full relative overflow-hidden group">
+                      <div className={`absolute bottom-0 w-full rounded-full transition-all duration-700 ease-out ${proData[i] > 0 ? 'bg-blue-500' : 'bg-gray-200'}`} style={{ height: `${proData[i]}%` }}></div>
+                      <div className="absolute opacity-0 group-hover:opacity-100 bg-gray-800 text-white text-[10px] rounded px-1.5 py-0.5 bottom-full mb-1 left-1/2 -translate-x-1/2 pointer-events-none whitespace-nowrap z-50">
+                        {dailySums[i].pro}g
+                      </div>
                     </div>
                     <span className={`text-gray-400 ${isWeekly ? 'text-xs' : 'text-[10px]'}`}>{label}</span>
                   </div>
@@ -322,7 +373,7 @@ export default function History() {
                   Carbohydrates
                 </div>
                 <div className="text-xs text-gray-400 font-medium">
-                  Goal: <span className="text-green-500">250g</span> &nbsp;&nbsp; Avg: <span className="text-gray-900 font-bold">210g</span>
+                  Goal: <span className="text-green-500">250g</span> &nbsp;&nbsp; Avg: <span className="text-gray-900 font-bold">{avgCar}g</span>
                 </div>
               </div>
               <div className="relative h-40 flex items-end justify-between pl-2 pr-12">
@@ -331,8 +382,11 @@ export default function History() {
                 
                 {labels.map((label, i) => (
                   <div key={'car' + i} className={`flex flex-col items-center ${barGapClass} z-10 ${barWidthClass}`}>
-                    <div className="w-full h-32 bg-gray-100 rounded-full relative overflow-hidden">
-                      <div className={`absolute bottom-0 w-full rounded-full transition-all duration-700 ease-out ${(isWeekly && i === 6) || (!isWeekly && i === daysInMonth - 1) ? 'bg-yellow-500' : 'bg-gray-200'}`} style={{ height: `${carData[i]}%` }}></div>
+                    <div className="w-full h-32 bg-gray-100 rounded-full relative overflow-hidden group">
+                      <div className={`absolute bottom-0 w-full rounded-full transition-all duration-700 ease-out ${carData[i] > 0 ? 'bg-yellow-500' : 'bg-gray-200'}`} style={{ height: `${carData[i]}%` }}></div>
+                      <div className="absolute opacity-0 group-hover:opacity-100 bg-gray-800 text-white text-[10px] rounded px-1.5 py-0.5 bottom-full mb-1 left-1/2 -translate-x-1/2 pointer-events-none whitespace-nowrap z-50">
+                        {dailySums[i].car}g
+                      </div>
                     </div>
                     <span className={`text-gray-400 ${isWeekly ? 'text-xs' : 'text-[10px]'}`}>{label}</span>
                   </div>
@@ -350,7 +404,7 @@ export default function History() {
                   Fats
                 </div>
                 <div className="text-xs text-gray-400 font-medium">
-                  Goal: <span className="text-green-500">70g</span> &nbsp;&nbsp; Avg: <span className="text-gray-900 font-bold">78g</span>
+                  Goal: <span className="text-green-500">70g</span> &nbsp;&nbsp; Avg: <span className="text-gray-900 font-bold">{avgFat}g</span>
                 </div>
               </div>
               <div className="relative h-40 flex items-end justify-between pl-2 pr-12">
@@ -359,8 +413,11 @@ export default function History() {
                 
                 {labels.map((label, i) => (
                   <div key={'fat' + i} className={`flex flex-col items-center ${barGapClass} z-10 ${barWidthClass}`}>
-                    <div className="w-full h-32 bg-gray-100 rounded-full relative overflow-hidden">
-                      <div className={`absolute bottom-0 w-full rounded-full transition-all duration-700 ease-out ${(isWeekly && i === 6) || (!isWeekly && i === daysInMonth - 1) ? 'bg-purple-500' : 'bg-gray-200'}`} style={{ height: `${fatData[i]}%` }}></div>
+                    <div className="w-full h-32 bg-gray-100 rounded-full relative overflow-hidden group">
+                      <div className={`absolute bottom-0 w-full rounded-full transition-all duration-700 ease-out ${fatData[i] > 0 ? 'bg-purple-500' : 'bg-gray-200'}`} style={{ height: `${fatData[i]}%` }}></div>
+                      <div className="absolute opacity-0 group-hover:opacity-100 bg-gray-800 text-white text-[10px] rounded px-1.5 py-0.5 bottom-full mb-1 left-1/2 -translate-x-1/2 pointer-events-none whitespace-nowrap z-50">
+                        {dailySums[i].fat}g
+                      </div>
                     </div>
                     <span className={`text-gray-400 ${isWeekly ? 'text-xs' : 'text-[10px]'}`}>{label}</span>
                   </div>
@@ -475,9 +532,21 @@ export default function History() {
 
           {/* Recent Food Logs */}
           <div>
-            <div className="mb-6">
-              <h3 className="text-lg font-bold text-gray-900">Recent Food Logs</h3>
-              <p className="text-xs text-gray-500">Your most recently tracked meals</p>
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Recent Food Logs</h3>
+                <p className="text-xs text-gray-500">Your most recently tracked meals</p>
+              </div>
+              <div className="relative">
+                <input 
+                  type="text" 
+                  placeholder="Search meals..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 pr-4 py-2 border border-gray-200 rounded-full text-sm focus:outline-none focus:border-brand-orange focus:ring-1 focus:ring-brand-orange w-64"
+                />
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+              </div>
             </div>
             
             <table className="w-full text-sm">
@@ -498,12 +567,12 @@ export default function History() {
                       Loading logs...
                     </td>
                   </tr>
-                ) : foodLogs.length === 0 ? (
+                ) : filteredLogs.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="py-8 text-center text-gray-500 italic">No food logs found. Snap a meal to get started!</td>
+                    <td colSpan="5" className="py-8 text-center text-gray-500 italic">No food logs found matching your search.</td>
                   </tr>
                 ) : (
-                  foodLogs.map((log) => (
+                  currentLogs.map((log) => (
                     <tr key={log.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="py-4 font-semibold text-gray-800 flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 flex-shrink-0 flex items-center justify-center">
@@ -568,6 +637,40 @@ export default function History() {
                 )}
               </tbody>
             </table>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-100">
+                <span className="text-xs text-gray-500">
+                  Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredLogs.length)} of {filteredLogs.length} entries
+                </span>
+                <div className="flex gap-1">
+                  <button 
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 border border-gray-200 rounded-md text-sm disabled:opacity-50 hover:bg-gray-50 text-gray-600 transition-colors"
+                  >
+                    Prev
+                  </button>
+                  {Array.from({ length: totalPages }).map((_, i) => (
+                    <button 
+                      key={i} 
+                      onClick={() => setCurrentPage(i + 1)}
+                      className={`w-8 py-1 border rounded-md text-sm transition-colors ${currentPage === i + 1 ? 'bg-brand-orange border-brand-orange text-white font-bold' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                  <button 
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 border border-gray-200 rounded-md text-sm disabled:opacity-50 hover:bg-gray-50 text-gray-600 transition-colors"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
         </div>

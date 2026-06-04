@@ -143,7 +143,7 @@ export default function SnapFoodTracker() {
         fat: Number(source.fat || 0),
         is_manual_override: hasManualOverride || isEditing,
       });
-      navigate('/app/history');
+      navigate('/app/dashboard');
     } catch (err) {
       console.error('Failed to save food log', err);
       alert(err.response?.data?.message || 'Failed to save food log');
@@ -468,10 +468,10 @@ export default function SnapFoodTracker() {
                   {/* Info */}
                   <div className="bg-orange-50/30 border border-brand-orange-light rounded-2xl p-4 mb-auto">
                     <div className="flex items-center gap-1.5 text-brand-orange text-xs font-semibold uppercase tracking-wider mb-2">
-                      <AlertCircle className="w-3.5 h-3.5" /> Info
+                      <Sparkles className="w-3.5 h-3.5" /> AI Summary
                     </div>
                     <p className="text-sm text-gray-700">
-                      Review the AI result, adjust the values if needed, then confirm to save it to your history.
+                      {logData.ai_summary || 'Review the AI result, adjust the values if needed, then confirm to save it to your history.'}
                     </p>
                   </div>
 
