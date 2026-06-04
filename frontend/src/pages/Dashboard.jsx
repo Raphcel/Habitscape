@@ -1,13 +1,204 @@
-import React, { useState, useEffect } from 'react';
-import { Activity, Droplet, Zap, BatteryCharging, Utensils, PersonStanding, BellDot, Edit, Camera } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Activity, AlertCircle, Brain, Camera, Droplets, Edit, Loader2, RefreshCw, Sparkles, Utensils, UtensilsCrossed, Zap } from 'lucide-react';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
+
+const formatDateKey = (date) => {
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return localDate.toISOString().split('T')[0];
+};
+
+const formatDisplayDate = (date) => {
+  if (!date) return 'Today';
+  return new Date(`${date}T00:00:00`).toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
+};
+
+const getScoreColor = (score) => {
+  if (!score) return 'text-gray-500';
+  const normalized = score.toLowerCase();
+  if (normalized.includes('excellent') || normalized.includes('great') || normalized === 'a') return 'text-emerald-600';
+  if (normalized.includes('good') || normalized === 'b') return 'text-green-600';
+  if (normalized.includes('fair') || normalized === 'c') return 'text-amber-600';
+  return 'text-orange-600';
+};
+
+const getScoreBg = (score) => {
+  if (!score) return 'bg-gray-100 text-gray-600 border-gray-200';
+  const normalized = score.toLowerCase();
+  if (normalized.includes('excellent') || normalized.includes('great') || normalized === 'a') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+  if (normalized.includes('good') || normalized === 'b') return 'bg-green-50 text-green-700 border-green-200';
+  if (normalized.includes('fair') || normalized === 'c') return 'bg-amber-50 text-amber-700 border-amber-200';
+  return 'bg-orange-50 text-orange-700 border-orange-200';
+};
+
+const getMacroPercentages = (recap) => {
+  const proteinCalories = Number(recap?.total_protein_g || 0) * 4;
+  const carbCalories = Number(recap?.total_carbs_g || 0) * 4;
+  const fatCalories = Number(recap?.total_fat_g || 0) * 9;
+  const totalCalories = proteinCalories + carbCalories + fatCalories || 1;
+
+  return {
+    protein: Math.round((proteinCalories / totalCalories) * 100),
+    carbs: Math.round((carbCalories / totalCalories) * 100),
+    fat: Math.round((fatCalories / totalCalories) * 100),
+  };
+};
+
+function AiSummarizationCard({ date, recap, error, isLoading, isGenerating, onRefresh }) {
+  const macroPercentages = getMacroPercentages(recap);
+  const generatedAt = recap?.generated_at
+    ? new Date(recap.generated_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
+    : null;
+
+  return (
+    <section className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 shadow-sm border border-purple-100 mb-6">
+      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+        <div>
+          <div className="flex items-center gap-2 text-indigo-700 font-semibold text-lg mb-2">
+            <Brain className="w-5 h-5" />
+            AI Summarization
+          </div>
+          <p className="text-indigo-800/70 text-sm leading-relaxed">
+            Daily nutrition recap and personalized recommendations from your logged meals.
+          </p>
+          {generatedAt && (
+            <p className="text-xs text-indigo-500 mt-2">Last generated {generatedAt}</p>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={isLoading || isGenerating}
+          className="bg-white/80 hover:bg-white disabled:opacity-60 disabled:cursor-not-allowed text-indigo-700 border border-indigo-100 px-4 py-2 rounded-xl text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm"
+        >
+          {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+          {recap ? 'Refresh' : 'Generate'}
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="h-64 flex flex-col items-center justify-center text-center text-indigo-700">
+          <Loader2 className="w-10 h-10 mb-4 animate-spin" />
+          <p className="text-sm font-medium">Loading today&apos;s AI recap...</p>
+        </div>
+      ) : error ? (
+        <div className="bg-white/70 border border-red-100 rounded-2xl p-6 flex flex-col items-center justify-center text-center min-h-64">
+          <AlertCircle className="w-10 h-10 text-red-500 mb-3" />
+          <p className="text-sm text-red-700 max-w-md mb-4">{error}</p>
+          <button
+            type="button"
+            onClick={onRefresh}
+            disabled={isGenerating}
+            className="text-sm text-indigo-700 hover:text-indigo-900 font-semibold underline underline-offset-4 flex items-center gap-2 disabled:opacity-60"
+          >
+            {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Try again
+          </button>
+        </div>
+      ) : !recap ? (
+        <div className="bg-white/70 border border-indigo-100 rounded-2xl p-6 flex flex-col items-center justify-center text-center min-h-64">
+          <UtensilsCrossed className="w-10 h-10 text-indigo-400 mb-3" />
+          <p className="text-sm text-indigo-800/70 max-w-md">
+            No recap has been generated for {formatDisplayDate(date)} yet. Log a meal or generate a recap when meals are available.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+          <div className="lg:col-span-2 bg-white/80 rounded-2xl p-5 border border-white shadow-sm">
+            <div className="text-center mb-5">
+              {recap.nutritional_score && (
+                <div className={`text-4xl font-black mb-2 ${getScoreColor(recap.nutritional_score)}`}>
+                  {recap.nutritional_score}
+                </div>
+              )}
+              <div className={`inline-block border px-3 py-1 rounded-full text-sm font-semibold ${getScoreBg(recap.nutritional_score)}`}>
+                {formatDisplayDate(recap.date || date)}
+              </div>
+              <div className="text-indigo-500 text-xs mt-2">
+                {recap.meals_count} meal{recap.meals_count !== 1 ? 's' : ''} logged
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-orange-50 rounded-xl p-3">
+                <div className="flex items-center gap-1 text-[10px] font-bold text-brand-orange uppercase tracking-wider mb-1">
+                  <Zap className="w-3 h-3" /> Calories
+                </div>
+                <div className="text-2xl font-black text-gray-900">{Math.round(Number(recap.total_calories || 0))}</div>
+                <div className="text-[10px] text-gray-500">kcal</div>
+              </div>
+              <div className="bg-blue-50 rounded-xl p-3">
+                <div className="flex items-center gap-1 text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1">
+                  <Utensils className="w-3 h-3" /> Protein
+                </div>
+                <div className="text-2xl font-black text-gray-900">{Number(recap.total_protein_g || 0).toFixed(1)}</div>
+                <div className="text-[10px] text-gray-500">grams</div>
+              </div>
+              <div className="bg-emerald-50 rounded-xl p-3">
+                <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-1">
+                  <Zap className="w-3 h-3" /> Carbs
+                </div>
+                <div className="text-2xl font-black text-gray-900">{Number(recap.total_carbs_g || 0).toFixed(1)}</div>
+                <div className="text-[10px] text-gray-500">grams</div>
+              </div>
+              <div className="bg-amber-50 rounded-xl p-3">
+                <div className="flex items-center gap-1 text-[10px] font-bold text-amber-600 uppercase tracking-wider mb-1">
+                  <Droplets className="w-3 h-3" /> Fat
+                </div>
+                <div className="text-2xl font-black text-gray-900">{Number(recap.total_fat_g || 0).toFixed(1)}</div>
+                <div className="text-[10px] text-gray-500">grams</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-3 bg-white/80 rounded-2xl p-5 border border-white shadow-sm">
+            <h3 className="text-xs font-bold text-indigo-600 uppercase tracking-widest mb-3">Macro Distribution</h3>
+            <div className="h-3 w-full bg-indigo-100 rounded-full overflow-hidden flex mb-2">
+              <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${macroPercentages.protein}%` }} />
+              <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${macroPercentages.carbs}%` }} />
+              <div className="h-full bg-amber-500 transition-all duration-500" style={{ width: `${macroPercentages.fat}%` }} />
+            </div>
+            <div className="flex flex-wrap justify-between gap-2 text-[11px] font-semibold mb-5">
+              <span className="text-blue-600">Protein {macroPercentages.protein}%</span>
+              <span className="text-emerald-600">Carbs {macroPercentages.carbs}%</span>
+              <span className="text-amber-600">Fat {macroPercentages.fat}%</span>
+            </div>
+
+            {recap.ai_recommendation && (
+              <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4">
+                <div className="flex items-start gap-3">
+                  <Sparkles className="w-5 h-5 text-indigo-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="text-xs font-bold text-indigo-600 uppercase tracking-widest mb-2">AI Recommendation</h3>
+                    <p className="text-sm text-indigo-900/80 leading-relaxed whitespace-pre-line">
+                      {recap.ai_recommendation}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
 
 export default function Dashboard() {
   const { user, updateProfile } = useAuth();
   const [showWeightReminder, setShowWeightReminder] = useState(false);
   const [weightInput, setWeightInput] = useState('');
   const [isSubmittingWeight, setIsSubmittingWeight] = useState(false);
+  const [dailyRecap, setDailyRecap] = useState(null);
+  const [recapError, setRecapError] = useState('');
+  const [isRecapLoading, setIsRecapLoading] = useState(true);
+  const [isRecapGenerating, setIsRecapGenerating] = useState(false);
+  const todayDate = formatDateKey(new Date());
 
   useEffect(() => {
     const checkWeightLog = async () => {
@@ -47,6 +238,76 @@ export default function Dashboard() {
       setIsSubmittingWeight(false);
     }
   };
+
+  const generateDailyRecap = useCallback(async () => {
+    setRecapError('');
+    setIsRecapGenerating(true);
+
+    try {
+      const { data } = await api.post('/daily-summaries/generate', { date: todayDate });
+      setDailyRecap(data.data.summary);
+    } catch (err) {
+      console.error('Failed to generate daily recap:', err);
+      const message = err.response?.data?.message
+        || err.response?.data?.detail
+        || err.message
+        || 'Failed to generate daily recap. Please try again.';
+      setRecapError(typeof message === 'string' ? message : JSON.stringify(message));
+    } finally {
+      setIsRecapGenerating(false);
+    }
+  }, [todayDate]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadDailyRecap = async () => {
+      setIsRecapLoading(true);
+      setRecapError('');
+
+      try {
+        const { data } = await api.get('/daily-summaries', { params: { date: todayDate } });
+        if (!isMounted) return;
+
+        const summary = data.data.summary;
+        if (summary) {
+          setDailyRecap(summary);
+          return;
+        }
+
+        setIsRecapGenerating(true);
+        try {
+          const generated = await api.post('/daily-summaries/generate', { date: todayDate });
+          if (isMounted) setDailyRecap(generated.data.data.summary);
+        } catch (err) {
+          if (!isMounted) return;
+          console.error('Failed to auto-generate daily recap:', err);
+          const message = err.response?.data?.message
+            || err.response?.data?.detail
+            || err.message
+            || 'Failed to generate daily recap. Please try again.';
+          setRecapError(typeof message === 'string' ? message : JSON.stringify(message));
+        } finally {
+          if (isMounted) setIsRecapGenerating(false);
+        }
+      } catch (err) {
+        if (!isMounted) return;
+        console.error('Failed to load daily recap:', err);
+        const message = err.response?.data?.message
+          || err.message
+          || 'Failed to load daily recap.';
+        setRecapError(typeof message === 'string' ? message : JSON.stringify(message));
+      } finally {
+        if (isMounted) setIsRecapLoading(false);
+      }
+    };
+
+    loadDailyRecap();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [todayDate]);
 
   return (
     <main className="flex-1 p-8">
@@ -182,92 +443,14 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {/* AI Summarization */}
-        <section className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 shadow-sm border border-purple-100 mb-6 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
-          <div className="relative z-10">
-            <div className="flex items-center gap-2 text-indigo-700 font-semibold text-lg mb-3">
-              <Zap className="w-5 h-5" />
-              AI Summarization
-            </div>
-            <p className="text-indigo-800/80 mb-6 text-sm pr-12 leading-relaxed">
-              "Your energy levels are peaking right now! It's the perfect time to crush that afternoon HIIT session you planned. Metabolic state is optimal for high intensity."
-            </p>
-
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              <div className="bg-white rounded-xl p-4 shadow-sm">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-[10px] uppercase font-bold text-gray-500">Hydration</span>
-                  <Droplet className="w-4 h-4 text-blue-500" />
-                </div>
-                <div className="text-xl font-bold text-blue-500 mb-2">65%</div>
-                <div className="h-1.5 w-full bg-blue-100 rounded-full">
-                  <div className="h-full bg-blue-500 rounded-full" style={{ width: '65%' }}></div>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl p-4 shadow-sm">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-[10px] uppercase font-bold text-gray-500">Metabolic</span>
-                  <Zap className="w-4 h-4 text-brand-orange" />
-                </div>
-                <div className="text-xl font-bold text-brand-orange mb-2">Steady</div>
-                <div className="h-1.5 w-full bg-orange-100 rounded-full">
-                  <div className="h-full bg-brand-orange rounded-full" style={{ width: '80%' }}></div>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl p-4 shadow-sm">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-[10px] uppercase font-bold text-gray-500">Readiness</span>
-                  <BatteryCharging className="w-4 h-4 text-green-500" />
-                </div>
-                <div className="text-xl font-bold text-green-500 mb-2">High</div>
-                <div className="h-1.5 w-full bg-green-100 rounded-full">
-                  <div className="h-full bg-green-500 rounded-full" style={{ width: '90%' }}></div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mb-4">
-              <div className="flex items-center gap-2 text-gray-600 font-medium text-sm mb-3">
-                <span className="w-2 h-2 rounded-full bg-brand-orange"></span>
-                Personalized Recommendations
-              </div>
-              <div className="flex flex-col gap-2">
-                <div className="bg-orange-50 text-orange-800 text-sm py-3 px-4 rounded-xl flex items-center gap-3">
-                  <Utensils className="w-4 h-4" />
-                  Increase protein intake by 15g in next meal
-                </div>
-                <div className="bg-blue-50 text-blue-800 text-sm py-3 px-4 rounded-xl flex items-center gap-3">
-                  <PersonStanding className="w-4 h-4" />
-                  Opt for a 15-min walk to boost circulation
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-2 text-indigo-700 font-medium text-sm mb-3">
-                <BellDot className="w-4 h-4" />
-                Smart Alert
-              </div>
-              <div className="bg-white/60 rounded-xl p-4 space-y-3">
-                <div className="flex gap-3 relative before:absolute before:left-1.5 before:top-5 before:bottom-[-12px] before:w-px before:bg-gray-200 last:before:hidden">
-                  <div className="w-3 h-3 rounded-full bg-red-400 mt-1 flex-shrink-0 relative z-10 border-2 border-white"></div>
-                  <div>
-                    <div className="text-sm font-semibold text-gray-800">Hydration Alert</div>
-                    <div className="text-xs text-gray-500">You're 20% below your target for this hour.</div>
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <div className="w-3 h-3 rounded-full bg-blue-400 mt-1 flex-shrink-0 relative z-10 border-2 border-white"></div>
-                  <div>
-                    <div className="text-sm font-semibold text-gray-800">Movement Check</div>
-                    <div className="text-xs text-gray-500">Good job on the morning steps! Keep it up.</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+        <AiSummarizationCard
+          date={todayDate}
+          recap={dailyRecap}
+          error={recapError}
+          isLoading={isRecapLoading}
+          isGenerating={isRecapGenerating}
+          onRefresh={generateDailyRecap}
+        />
 
         {/* Recently Logged */}
         <section className="bg-white rounded-2xl p-6 shadow-sm border border-orange-50">

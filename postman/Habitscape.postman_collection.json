@@ -1,0 +1,944 @@
+{
+  "info": {
+    "_postman_id": "9f56f7e4-2110-4af0-b0a0-6f48753c5f60",
+    "name": "Habitscape API",
+    "description": "Local development Postman collection for Habitscape Express API, Food Detection FastAPI service, and BMI FastAPI service.\n\nNotes:\n- Import `Habitscape.local.postman_environment.json` and select it before running requests.\n- Express protected requests use `{{token}}`, which is automatically saved by Register/Login when successful.\n- Image upload requests require updating `{{foodImagePath}}` or manually selecting a local image in Postman.\n- Food ML image requests require the food model artifact at `ML/Habitscape/food-detection/weights/best.pt`.\n- BMI ML prediction requires `bmi_model_new.keras` and `scaler_bmi_new.pkl`.\n- Express food analyze may fail until the Express-to-FastAPI contract is aligned.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const now = new Date();",
+          "pm.environment.set('today', now.toISOString().slice(0, 10));"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test('Status is not 500 Internal Server Error', function () {",
+          "  pm.expect(pm.response.code).to.not.eql(500);",
+          "});",
+          "",
+          "const contentType = pm.response.headers.get('Content-Type') || '';",
+          "if (contentType.includes('application/json')) {",
+          "  pm.test('Response is valid JSON', function () {",
+          "    pm.response.json();",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "00 - Express Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{expressBaseUrl}}/health",
+              "host": [
+                "{{expressBaseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Checks whether the Express API is running."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Express health is OK', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "  pm.expect(json.status || json.data?.status || 'ok').to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 - Auth",
+      "item": [
+        {
+          "name": "Register - New Test User",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('testEmail', `habitscape+${Date.now()}@example.com`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Registration succeeds', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "if (json?.data?.token) pm.environment.set('token', json.data.token);",
+                  "if (json?.data?.user?.id) pm.environment.set('userId', json.data.user.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Habitscape Tester\",\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{expressBaseUrl}}/auth/register",
+              "host": [
+                "{{expressBaseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Creates a new test user and saves `token` and `userId` into the selected environment."
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login succeeds', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "if (json?.data?.token) pm.environment.set('token', json.data.token);",
+                  "if (json?.data?.user?.id) pm.environment.set('userId', json.data.user.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{expressBaseUrl}}/auth/login",
+              "host": [
+                "{{expressBaseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Logs in with the environment credentials and refreshes `token` and `userId`."
+          }
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{expressBaseUrl}}/auth/me",
+              "host": [
+                "{{expressBaseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Returns the authenticated user's profile."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Current user returned', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "  pm.expect(json.data.user).to.have.property('id');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Current User Profile",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Habitscape Tester Updated\",\n  \"calorie_goal\": 2300,\n  \"protein_goal_g\": 140,\n  \"carbs_goal_g\": 260,\n  \"fat_goal_g\": 75,\n  \"height_cm\": 170,\n  \"weight_kg\": 65,\n  \"age\": 22,\n  \"gender\": \"male\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{expressBaseUrl}}/auth/me",
+              "host": [
+                "{{expressBaseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Updates profile and nutrition goals for the authenticated user."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Profile updated', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 - Food Logs",
+      "item": [
+        {
+          "name": "Create Manual Food Log",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Food log created', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const id = json?.data?.foodLog?.id || json?.data?.id;",
+                  "if (id) pm.environment.set('foodLogId', id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"meal_name\": \"Nasi Goreng Manual\",\n  \"calories\": 520,\n  \"protein\": 18.5,\n  \"carbs\": 72,\n  \"fat\": 16,\n  \"image_url\": \"\",\n  \"is_manual_override\": true,\n  \"logged_at\": \"2026-05-31T12:00:00+07:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{expressBaseUrl}}/food-logs",
+              "host": [
+                "{{expressBaseUrl}}"
+              ],
+              "path": [
+                "food-logs"
+              ]
+            },
+            "description": "Creates a confirmed manual food log and saves `foodLogId`."
+          }
+        },
+        {
+          "name": "List Food Logs",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{expressBaseUrl}}/food-logs?limit=20&offset=0",
+              "host": [
+                "{{expressBaseUrl}}"
+              ],
+              "path": [
+                "food-logs"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "Lists authenticated user's food logs with pagination."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Food logs listed', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "  pm.expect(json.data).to.have.property('data');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Food Logs By Date",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{expressBaseUrl}}/food-logs?date={{today}}&limit=20&offset=0",
+              "host": [
+                "{{expressBaseUrl}}"
+              ],
+              "path": [
+                "food-logs"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "{{today}}"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "Lists food logs for `{{today}}`."
+          }
+        },
+        {
+          "name": "Update Food Log",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"meal_name\": \"Nasi Goreng Updated\",\n  \"calories\": 500,\n  \"protein\": 20,\n  \"carbs\": 65,\n  \"fat\": 14\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{expressBaseUrl}}/food-logs/{{foodLogId}}",
+              "host": [
+                "{{expressBaseUrl}}"
+              ],
+              "path": [
+                "food-logs",
+                "{{foodLogId}}"
+              ]
+            },
+            "description": "Updates the food log saved in `{{foodLogId}}`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Food log updated', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Analyze Food Image Via Express",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": "{{foodImagePath}}"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{expressBaseUrl}}/food-logs/analyze",
+              "host": [
+                "{{expressBaseUrl}}"
+              ],
+              "path": [
+                "food-logs",
+                "analyze"
+              ]
+            },
+            "description": "Analyzes a food image through Express. Requires FastAPI ML service and model artifacts. This request may fail until the Express-to-FastAPI contract is aligned."
+          }
+        },
+        {
+          "name": "Delete Food Log",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{expressBaseUrl}}/food-logs/{{foodLogId}}",
+              "host": [
+                "{{expressBaseUrl}}"
+              ],
+              "path": [
+                "food-logs",
+                "{{foodLogId}}"
+              ]
+            },
+            "description": "Deletes the food log saved in `{{foodLogId}}`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Food log deleted', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 - Weight",
+      "item": [
+        {
+          "name": "Add Weight Log",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"weight_kg\": 65.5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{expressBaseUrl}}/weight",
+              "host": [
+                "{{expressBaseUrl}}"
+              ],
+              "path": [
+                "weight"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Weight logged', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Weight History",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{expressBaseUrl}}/weight",
+              "host": [
+                "{{expressBaseUrl}}"
+              ],
+              "path": [
+                "weight"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Weight history returned', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 - Food ML FastAPI Direct",
+      "description": "Direct calls to the Food Detection FastAPI service. Image endpoints require `weights/best.pt` and SumoPod config.",
+      "item": [
+        {
+          "name": "Food ML Root",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{foodMlBaseUrl}}/",
+              "host": [
+                "{{foodMlBaseUrl}}"
+              ],
+              "path": [
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Food ML Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{foodMlBaseUrl}}/health",
+              "host": [
+                "{{foodMlBaseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Detect Food Image",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "{{foodImagePath}}"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{foodMlBaseUrl}}/api/v1/detect",
+              "host": [
+                "{{foodMlBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "detect"
+              ]
+            },
+            "description": "Runs food detection only. Requires local image file and model artifact."
+          }
+        },
+        {
+          "name": "Analyze Food Image",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "{{foodImagePath}}"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{foodMlBaseUrl}}/api/v1/analyze",
+              "host": [
+                "{{foodMlBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analyze"
+              ]
+            },
+            "description": "Runs food detection, nutrition estimation, and AI summary. Requires model artifact and SumoPod API key."
+          }
+        },
+        {
+          "name": "Estimate Nutrition From Food Names",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  \"nasi\",\n  \"ayam goreng\",\n  \"tempe goreng\"\n]",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{foodMlBaseUrl}}/api/v1/nutrition",
+              "host": [
+                "{{foodMlBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "nutrition"
+              ]
+            },
+            "description": "Estimates nutrition from valid model food labels."
+          }
+        },
+        {
+          "name": "Daily Recap Recommendation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{userId}}\",\n  \"date\": \"{{today}}\",\n  \"meals\": [\n    {\n      \"meal_type\": \"lunch\",\n      \"detected_foods\": [\"nasi\", \"ayam goreng\"],\n      \"nutrition\": {\n        \"foods\": [\n          {\n            \"food_name\": \"nasi\",\n            \"serving_size_g\": 150,\n            \"calories_kcal\": 195,\n            \"protein_g\": 4,\n            \"carbs_g\": 42,\n            \"fat_g\": 0.4,\n            \"fiber_g\": 0.6,\n            \"notes\": \"Example value\"\n          },\n          {\n            \"food_name\": \"ayam goreng\",\n            \"serving_size_g\": 100,\n            \"calories_kcal\": 260,\n            \"protein_g\": 26,\n            \"carbs_g\": 8,\n            \"fat_g\": 14,\n            \"fiber_g\": 0,\n            \"notes\": \"Example value\"\n          }\n        ],\n        \"total_calories\": 455,\n        \"total_protein_g\": 30,\n        \"total_carbs_g\": 50,\n        \"total_fat_g\": 14.4\n      },\n      \"timestamp\": \"2026-05-31T12:00:00+07:00\"\n    }\n  ],\n  \"user_profile\": {\n    \"usia\": 22,\n    \"berat_kg\": 65,\n    \"tinggi_cm\": 170,\n    \"gender\": \"laki-laki\",\n    \"tujuan\": \"menjaga berat badan\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{foodMlBaseUrl}}/api/v1/recap/daily",
+              "host": [
+                "{{foodMlBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "recap",
+                "daily"
+              ]
+            },
+            "description": "Generates daily nutrition recap and AI recommendation."
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - BMI ML FastAPI Direct",
+      "description": "Direct calls to the BMI FastAPI service. Prediction requires `bmi_model_new.keras`, `scaler_bmi_new.pkl`, and SumoPod config.",
+      "item": [
+        {
+          "name": "BMI ML Root",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{bmiMlBaseUrl}}/",
+              "host": [
+                "{{bmiMlBaseUrl}}"
+              ],
+              "path": [
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "BMI ML Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{bmiMlBaseUrl}}/api/v1/health",
+              "host": [
+                "{{bmiMlBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "health"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Predict BMI",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fat_total_g\": 70,\n  \"height_cm\": 170,\n  \"age\": 22,\n  \"sleep_hours\": 6,\n  \"calorie_daily\": 2200,\n  \"diet_quality_num\": 3,\n  \"smoker_num\": 0,\n  \"alcohol_num\": 1,\n  \"stress_level\": 8,\n  \"exercise_freq_num\": 4\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{bmiMlBaseUrl}}/api/v1/predict-bmi",
+              "host": [
+                "{{bmiMlBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "predict-bmi"
+              ]
+            },
+            "description": "Runs BMI classification and returns AI recommendation."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  pm.test('BMI prediction has expected keys', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('bmi_category');",
+                  "    pm.expect(json).to.have.property('confidence');",
+                  "    pm.expect(json).to.have.property('probabilities');",
+                  "    pm.expect(json).to.have.property('ai_recommendation');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

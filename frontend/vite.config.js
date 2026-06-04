@@ -21,6 +21,12 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      '/ml-api': {
+        target: 'https://habitscape-production.up.railway.app',
+        changeOrigin: true,
+        secure: true,
+        rewrite: (path) => path.replace(/^\/ml-api/, ''),
+      },
     },
   },
 })
