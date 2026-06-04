@@ -1,10 +1,14 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, Edit2, Trash2, Camera, Loader2, Search } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 
 export default function History() {
+  const { t, i18n } = useTranslation();
   const { user, updateProfile } = useAuth();
+  const locale = i18n.resolvedLanguage === 'id' ? 'id-ID' : 'en-US';
+  const userHeightCm = user?.height_cm;
   const [viewMode, setViewMode] = useState('Weekly');
   const [weekOffset, setWeekOffset] = useState(0);
   const [monthOffset, setMonthOffset] = useState(0);
@@ -42,14 +46,14 @@ export default function History() {
     try {
       const { data } = await api.get('/weight');
       const history = data.data;
-      const heightM = (user?.height_cm || 170) / 100;
+      const heightM = (userHeightCm || 170) / 100;
       
       const formatted = history.map(log => {
         const w = parseFloat(log.weight_kg);
         const bmi = parseFloat((w / (heightM * heightM)).toFixed(1));
         const date = new Date(log.logged_at);
         return {
-          dateStr: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          dateStr: date.toLocaleDateString(locale, { month: 'short', day: 'numeric' }),
           bmi
         };
       });
@@ -57,7 +61,7 @@ export default function History() {
     } catch (err) {
       console.error('Failed to fetch weight history', err);
     }
-  }, [user?.height_cm]);
+  }, [locale, userHeightCm]);
 
   useEffect(() => {
     fetchFoodLogs();
@@ -73,7 +77,7 @@ export default function History() {
   }, [user?.height_cm, user?.weight_kg]);
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this log?')) return;
+    if (!window.confirm(t('history.deleteConfirm'))) return;
     try {
       await api.delete(`/food-logs/${id}`);
       fetchFoodLogs();
@@ -108,7 +112,7 @@ export default function History() {
       fetchFoodLogs();
     } catch (err) {
       console.error('Failed to update log:', err);
-      alert('Failed to update log');
+      alert(t('history.updateFailed'));
     }
   };
 
@@ -150,7 +154,9 @@ export default function History() {
       d.setDate(startDate.getDate() + i);
       dateRange.push(d);
     }
-    chartLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    chartLabels = i18n.resolvedLanguage === 'id'
+      ? ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
+      : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   } else {
     startDate.setMonth(now.getMonth() + monthOffset);
     startDate.setDate(1); // 1st of the month
@@ -169,9 +175,9 @@ export default function History() {
     const options = { month: 'short', day: 'numeric' };
     if (isWeekly) {
       const endDate = new Date(dateRange[6]);
-      return `${dateRange[0].toLocaleDateString('en-US', options)} - ${endDate.toLocaleDateString('en-US', { ...options, year: 'numeric' })}`;
+      return `${dateRange[0].toLocaleDateString(locale, options)} - ${endDate.toLocaleDateString(locale, { ...options, year: 'numeric' })}`;
     } else {
-      return startDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      return startDate.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
     }
   };
 
@@ -265,15 +271,15 @@ export default function History() {
     <main className="flex-1 p-8 min-h-screen">
       <div className="max-w-5xl">
         <header className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-1">History & Progress</h1>
-          <p className="text-gray-500">Review your past activities and health trends.</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-1">{t('history.title')}</h1>
+          <p className="text-gray-500">{t('history.subtitle')}</p>
         </header>
 
         <div className="bg-white rounded-3xl p-8 shadow-sm border border-orange-50">
           
           {/* Header Controls */}
           <div className="flex justify-between items-center mb-8">
-            <h2 className="text-xl font-bold text-gray-900">Health Development</h2>
+            <h2 className="text-xl font-bold text-gray-900">{t('history.development')}</h2>
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-3 text-brand-orange font-medium w-64 justify-center">
                 <button onClick={handlePrev} className="p-1 hover:bg-orange-50 rounded transition-colors"><ChevronLeft className="w-5 h-5" /></button>
@@ -285,13 +291,13 @@ export default function History() {
                   onClick={() => setViewMode('Weekly')}
                   className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${isWeekly ? 'bg-white shadow-sm text-brand-orange' : 'text-gray-500 hover:text-gray-700'}`}
                 >
-                  Weekly
+                  {t('history.weekly')}
                 </button>
                 <button 
                   onClick={() => setViewMode('Monthly')}
                   className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${!isWeekly ? 'bg-white shadow-sm text-brand-orange' : 'text-gray-500 hover:text-gray-700'}`}
                 >
-                  Monthly
+                  {t('history.monthly')}
                 </button>
               </div>
             </div>
@@ -307,10 +313,10 @@ export default function History() {
                   <div className="w-4 h-4 rounded-full bg-brand-orange flex items-center justify-center">
                     <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
                   </div>
-                  Calories
+                  {t('history.calories')}
                 </div>
                 <div className="text-xs text-gray-400 font-medium">
-                  Goal: <span className="text-green-500">2,200 Kcal</span> &nbsp;&nbsp; Avg: <span className="text-gray-900 font-bold">{avgCal} Kcal</span>
+                  {t('common.goal')}: <span className="text-green-500">2,200 Kcal</span> &nbsp;&nbsp; {t('common.average')}: <span className="text-gray-900 font-bold">{avgCal} Kcal</span>
                 </div>
               </div>
               <div className="relative h-40 flex items-end justify-between pl-2 pr-12">
@@ -339,10 +345,10 @@ export default function History() {
                   <div className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
                     <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
                   </div>
-                  Protein
+                  {t('history.protein')}
                 </div>
                 <div className="text-xs text-gray-400 font-medium">
-                  Goal: <span className="text-green-500">160g</span> &nbsp;&nbsp; Avg: <span className="text-gray-900 font-bold">{avgPro}g</span>
+                  {t('common.goal')}: <span className="text-green-500">160g</span> &nbsp;&nbsp; {t('common.average')}: <span className="text-gray-900 font-bold">{avgPro}g</span>
                 </div>
               </div>
               <div className="relative h-40 flex items-end justify-between pl-2 pr-12">
@@ -370,10 +376,10 @@ export default function History() {
                   <div className="w-4 h-4 rounded-full bg-yellow-500 flex items-center justify-center">
                     <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
                   </div>
-                  Carbohydrates
+                  {t('history.carbohydrates')}
                 </div>
                 <div className="text-xs text-gray-400 font-medium">
-                  Goal: <span className="text-green-500">250g</span> &nbsp;&nbsp; Avg: <span className="text-gray-900 font-bold">{avgCar}g</span>
+                  {t('common.goal')}: <span className="text-green-500">250g</span> &nbsp;&nbsp; {t('common.average')}: <span className="text-gray-900 font-bold">{avgCar}g</span>
                 </div>
               </div>
               <div className="relative h-40 flex items-end justify-between pl-2 pr-12">
@@ -401,10 +407,10 @@ export default function History() {
                   <div className="w-4 h-4 rounded-full bg-purple-500 flex items-center justify-center">
                     <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
                   </div>
-                  Fats
+                  {t('history.fats')}
                 </div>
                 <div className="text-xs text-gray-400 font-medium">
-                  Goal: <span className="text-green-500">70g</span> &nbsp;&nbsp; Avg: <span className="text-gray-900 font-bold">{avgFat}g</span>
+                  {t('common.goal')}: <span className="text-green-500">70g</span> &nbsp;&nbsp; {t('common.average')}: <span className="text-gray-900 font-bold">{avgFat}g</span>
                 </div>
               </div>
               <div className="relative h-40 flex items-end justify-between pl-2 pr-12">
@@ -434,14 +440,14 @@ export default function History() {
                 <div className="w-4 h-4 rounded-md border-2 border-emerald-600 flex items-center justify-center">
                   <div className="w-1.5 h-1.5 bg-emerald-600 rounded-sm"></div>
                 </div>
-                BMI Analysis
+                {t('history.bmiAnalysis')}
               </div>
               <div className="flex gap-4 text-xs font-medium">
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Current: <span className="text-gray-900 font-bold">{bmiData.length > 0 ? bmiData[bmiData.length - 1].bmi : (user?.weight_kg ? parseFloat((user.weight_kg / Math.pow((user.height_cm || 170) / 100, 2)).toFixed(1)) : '--')}</span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span> {t('common.current')}: <span className="text-gray-900 font-bold">{bmiData.length > 0 ? bmiData[bmiData.length - 1].bmi : (user?.weight_kg ? parseFloat((user.weight_kg / Math.pow((user.height_cm || 170) / 100, 2)).toFixed(1)) : '--')}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-200"></span> Normal Range: <span className="text-gray-900 font-bold">18.5 - 24.9</span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-200"></span> {t('history.normalRange')}: <span className="text-gray-900 font-bold">18.5 - 24.9</span>
                 </div>
               </div>
             </div>
@@ -480,7 +486,7 @@ export default function History() {
                 </div>
               ) : (
                 <div className="h-full flex items-center justify-center text-gray-400 text-sm border-2 border-dashed border-gray-100 rounded-2xl ml-4">
-                  No weight history available. Log your weight to see your BMI trend.
+                  {t('history.noWeight')}
                 </div>
               )}
             </div>
@@ -488,8 +494,8 @@ export default function History() {
             {/* Log Data Widget */}
             <div className="mt-8 bg-emerald-50 rounded-2xl p-5 border border-emerald-100 flex items-center justify-between">
               <div>
-                <h4 className="font-bold text-emerald-900 text-sm">Update Measurements</h4>
-                <p className="text-xs text-emerald-700/70 mt-1">Keep your BMI accurate by logging your latest data.</p>
+                <h4 className="font-bold text-emerald-900 text-sm">{t('history.updateMeasurements')}</h4>
+                <p className="text-xs text-emerald-700/70 mt-1">{t('history.updateMeasurementsBody')}</p>
               </div>
               <form onSubmit={handleManualLog} className="flex items-center gap-3">
                 <div className="relative">
@@ -498,7 +504,7 @@ export default function History() {
                     step="0.1" 
                     value={weightInput} 
                     onChange={e => setWeightInput(e.target.value)} 
-                    placeholder="Weight" 
+                    placeholder={t('history.weightPlaceholder')}
                     className="w-24 px-4 py-2 bg-white border border-emerald-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 text-gray-900 text-sm" 
                     required 
                   />
@@ -510,7 +516,7 @@ export default function History() {
                     step="0.1" 
                     value={heightInput} 
                     onChange={e => setHeightInput(e.target.value)} 
-                    placeholder="Height" 
+                    placeholder={t('history.heightPlaceholder')}
                     className="w-24 px-4 py-2 bg-white border border-emerald-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 text-gray-900 text-sm" 
                     required 
                   />
@@ -521,7 +527,7 @@ export default function History() {
                   disabled={isSubmittingLog}
                   className="bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white px-5 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-2"
                 >
-                  {isSubmittingLog ? 'Saving...' : 'Save Log'}
+                  {isSubmittingLog ? t('common.saving') : t('history.saveLog')}
                 </button>
               </form>
             </div>
@@ -534,13 +540,13 @@ export default function History() {
           <div>
             <div className="flex justify-between items-center mb-6">
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Recent Food Logs</h3>
-                <p className="text-xs text-gray-500">Your most recently tracked meals</p>
+                <h3 className="text-lg font-bold text-gray-900">{t('history.recentFoodLogs')}</h3>
+                <p className="text-xs text-gray-500">{t('history.recentFoodLogsBody')}</p>
               </div>
               <div className="relative">
                 <input 
                   type="text" 
-                  placeholder="Search meals..." 
+                  placeholder={t('history.search')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9 pr-4 py-2 border border-gray-200 rounded-full text-sm focus:outline-none focus:border-brand-orange focus:ring-1 focus:ring-brand-orange w-64"
@@ -552,11 +558,11 @@ export default function History() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-[10px] text-gray-400 font-bold tracking-wider uppercase border-b border-gray-100">
-                  <th className="pb-3 font-medium">Meal</th>
-                  <th className="pb-3 font-medium">Time</th>
-                  <th className="pb-3 font-medium">Calories</th>
-                  <th className="pb-3 font-medium">Macros (P/C/F)</th>
-                  <th className="pb-3 text-right font-medium">Actions</th>
+                  <th className="pb-3 font-medium">{t('history.meal')}</th>
+                  <th className="pb-3 font-medium">{t('history.time')}</th>
+                  <th className="pb-3 font-medium">{t('history.calories')}</th>
+                  <th className="pb-3 font-medium">{t('history.macros')}</th>
+                  <th className="pb-3 text-right font-medium">{t('history.actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -564,12 +570,12 @@ export default function History() {
                   <tr>
                     <td colSpan="5" className="py-8 text-center text-gray-500">
                       <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-brand-orange" />
-                      Loading logs...
+                      {t('history.loadingLogs')}
                     </td>
                   </tr>
                 ) : filteredLogs.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="py-8 text-center text-gray-500 italic">No food logs found matching your search.</td>
+                    <td colSpan="5" className="py-8 text-center text-gray-500 italic">{t('history.noLogs')}</td>
                   </tr>
                 ) : (
                   currentLogs.map((log) => (
@@ -591,11 +597,11 @@ export default function History() {
                             className="w-full border border-orange-200 rounded px-2 py-1 font-semibold text-gray-800 focus:outline-none focus:border-brand-orange" 
                           />
                         ) : (
-                          <span className="truncate max-w-[150px]">{log.meal_name || 'Unknown Meal'}</span>
+                          <span className="truncate max-w-[150px]">{log.meal_name || t('common.unknownMeal')}</span>
                         )}
                       </td>
                       <td className="py-4 text-gray-500">
-                        {new Date(log.logged_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                        {new Date(log.logged_at).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })}
                       </td>
                       <td className="py-4">
                         {editingId === log.id ? (
@@ -622,8 +628,8 @@ export default function History() {
                       <td className="py-4 text-right">
                         {editingId === log.id ? (
                           <>
-                            <button onClick={() => handleSaveEdit(log.id)} className="px-3 py-1 bg-brand-orange text-white text-xs font-medium rounded hover:bg-brand-orange-dark transition-colors mr-2">Save</button>
-                            <button onClick={() => setEditingId(null)} className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded hover:bg-gray-200 transition-colors">Cancel</button>
+                            <button onClick={() => handleSaveEdit(log.id)} className="px-3 py-1 bg-brand-orange text-white text-xs font-medium rounded hover:bg-brand-orange-dark transition-colors mr-2">{t('common.save')}</button>
+                            <button onClick={() => setEditingId(null)} className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded hover:bg-gray-200 transition-colors">{t('common.cancel')}</button>
                           </>
                         ) : (
                           <>
@@ -642,7 +648,7 @@ export default function History() {
             {totalPages > 1 && (
               <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-100">
                 <span className="text-xs text-gray-500">
-                  Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredLogs.length)} of {filteredLogs.length} entries
+                  {t('history.showing', { from: (currentPage - 1) * itemsPerPage + 1, to: Math.min(currentPage * itemsPerPage, filteredLogs.length), total: filteredLogs.length })}
                 </span>
                 <div className="flex gap-1">
                   <button 
@@ -650,7 +656,7 @@ export default function History() {
                     disabled={currentPage === 1}
                     className="px-3 py-1 border border-gray-200 rounded-md text-sm disabled:opacity-50 hover:bg-gray-50 text-gray-600 transition-colors"
                   >
-                    Prev
+                    {t('history.prev')}
                   </button>
                   {Array.from({ length: totalPages }).map((_, i) => (
                     <button 
@@ -666,7 +672,7 @@ export default function History() {
                     disabled={currentPage === totalPages}
                     className="px-3 py-1 border border-gray-200 rounded-md text-sm disabled:opacity-50 hover:bg-gray-50 text-gray-600 transition-colors"
                   >
-                    Next
+                    {t('history.next')}
                   </button>
                 </div>
               </div>

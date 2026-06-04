@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import CustomSelect from '../components/CustomSelect';
 
 export default function Onboarding() {
-  const { user, updateProfile, loading, error, setError } = useAuth();
+  const { t } = useTranslation();
+  const { user, updateProfile, loading, error } = useAuth();
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -34,8 +36,8 @@ export default function Onboarding() {
     <div className="min-h-screen bg-[#FFFDFB] flex items-center justify-center p-4 font-sans">
       <div className="max-w-md w-full bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden border border-gray-100 p-8 md:p-12">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2 tracking-tight">Complete Profile</h1>
-          <p className="text-gray-500 text-sm">Let's set up your baseline for precise health tracking.</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2 tracking-tight">{t('onboarding.title')}</h1>
+          <p className="text-gray-500 text-sm">{t('onboarding.subtitle')}</p>
         </div>
 
         {error && (
@@ -47,7 +49,7 @@ export default function Onboarding() {
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="grid grid-cols-2 gap-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Age</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('onboarding.age')}</label>
               <input 
                 type="number" 
                 name="age"
@@ -58,18 +60,21 @@ export default function Onboarding() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Gender</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('onboarding.gender')}</label>
               <CustomSelect
                 name="gender"
                 value={formData.gender}
                 onChange={handleChange}
-                options={['Male', 'Female']}
+                options={[
+                  { value: 'Male', label: t('common.male') },
+                  { value: 'Female', label: t('common.female') },
+                ]}
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Height (cm)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('onboarding.height')}</label>
             <input 
               type="number" 
               name="height_cm"
@@ -81,7 +86,7 @@ export default function Onboarding() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Weight (kg)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('onboarding.weight')}</label>
             <input 
               type="number" 
               name="weight_kg"
@@ -97,7 +102,7 @@ export default function Onboarding() {
             disabled={loading}
             className="w-full bg-brand-orange hover:bg-brand-orange-dark text-white font-semibold py-3.5 rounded-xl transition-all shadow-lg shadow-brand-orange/20 mt-4 active:scale-[0.98] disabled:opacity-60"
           >
-            {loading ? 'Saving...' : 'Continue to Dashboard'}
+            {loading ? t('common.saving') : t('onboarding.continue')}
           </button>
         </form>
       </div>

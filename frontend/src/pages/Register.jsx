@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 
 const Register = () => {
+  const { t } = useTranslation();
   const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -40,16 +42,16 @@ const Register = () => {
             style={{ transform: 'scaleX(-1)' }}
           />
           <div className="relative z-10 glass-panel p-8 rounded-3xl text-center max-w-[320px] backdrop-blur-md bg-white/30 border border-white/40 shadow-2xl">
-            <h2 className="text-3xl font-extrabold text-[#2D3134] mb-3 font-sans tracking-tight">Join the Movement</h2>
-            <p className="text-[#2D3134]/80 text-sm font-medium leading-relaxed">Start your journey to a healthier lifestyle today.</p>
+            <h2 className="text-3xl font-extrabold text-[#2D3134] mb-3 font-sans tracking-tight">{t('auth.joinMovement')}</h2>
+            <p className="text-[#2D3134]/80 text-sm font-medium leading-relaxed">{t('auth.joinSubtitle')}</p>
           </div>
         </div>
 
         {/* Left Side - Form */}
         <div className="w-full md:w-1/2 p-8 md:p-12 lg:p-16 flex flex-col justify-center">
           <div className="max-w-[360px] mx-auto w-full">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2 tracking-tight">Create an account</h1>
-            <p className="text-gray-500 text-sm mb-8">Join Habitscape to start building better habits.</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2 tracking-tight">{t('auth.createAccount')}</h1>
+            <p className="text-gray-500 text-sm mb-8">{t('auth.registerSubtitle')}</p>
 
             {/* API-level error banner */}
             {error && (
@@ -61,12 +63,12 @@ const Register = () => {
             <form onSubmit={handleSubmit} className="space-y-4" noValidate>
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Full Name<span className="text-red-500 ml-1">*</span>
+                  {t('auth.fullName')}<span className="text-red-500 ml-1">*</span>
                 </label>
                 <input 
                   id="name"
                   type="text" 
-                  placeholder="John Doe" 
+                  placeholder={t('auth.fullNamePlaceholder')}
                   className={`w-full px-4 py-3.5 rounded-xl border ${fieldErrors.name ? 'border-red-400' : 'border-gray-200'} focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all text-sm`}
                   value={name}
                   onChange={(e) => { setName(e.target.value); clearErrors(); }}
@@ -80,12 +82,12 @@ const Register = () => {
 
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Email Address<span className="text-red-500 ml-1">*</span>
+                  {t('auth.email')}<span className="text-red-500 ml-1">*</span>
                 </label>
                 <input 
                   id="email"
                   type="email" 
-                  placeholder="Write your email" 
+                  placeholder={t('auth.emailPlaceholder')}
                   className={`w-full px-4 py-3.5 rounded-xl border ${fieldErrors.email ? 'border-red-400' : 'border-gray-200'} focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all text-sm`}
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); clearErrors(); }}
@@ -99,13 +101,13 @@ const Register = () => {
 
               <div>
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Password<span className="text-red-500 ml-1">*</span>
+                  {t('auth.password')}<span className="text-red-500 ml-1">*</span>
                 </label>
                 <div className="relative">
                   <input 
                     id="password"
                     type={showPassword ? "text" : "password"} 
-                    placeholder="Min. 8 characters" 
+                    placeholder={t('auth.passwordPlaceholder')}
                     className={`w-full px-4 py-3.5 rounded-xl border ${fieldErrors.password ? 'border-red-400' : 'border-gray-200'} focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all text-sm pr-12`}
                     value={password}
                     onChange={(e) => { setPassword(e.target.value); clearErrors(); }}
@@ -130,7 +132,7 @@ const Register = () => {
                 disabled={loading}
                 className="w-full bg-brand-orange hover:bg-brand-orange-dark text-white font-semibold py-3.5 rounded-xl transition-all shadow-lg shadow-brand-orange/20 mt-4 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {loading ? 'Creating account…' : 'Sign Up'}
+                {loading ? t('auth.creatingAccount') : t('auth.signupAction')}
               </button>
             </form>
 
@@ -139,7 +141,7 @@ const Register = () => {
                 <div className="w-full border-t border-gray-100"></div>
               </div>
               <span className="relative bg-white px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                Or sign up with
+                {t('auth.signupWith')}
               </span>
             </div>
 
@@ -151,14 +153,14 @@ const Register = () => {
                   <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
                   <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
                 </svg>
-                Google
+                {t('auth.google')}
               </button>
             </div>
 
             <p className="mt-8 text-center text-sm text-gray-600">
-              Already have an account?{' '}
+              {t('auth.hasAccount')}{' '}
               <Link to="/login" className="text-brand-orange hover:text-brand-orange-dark font-bold transition-colors">
-                Log In
+                {t('auth.login')}
               </Link>
             </p>
           </div>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AlertCircle, Brain, Camera, Droplets, Edit, Loader2, RefreshCw, Sparkles, Utensils, UtensilsCrossed, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -9,9 +10,9 @@ const formatDateKey = (date) => {
   return localDate.toISOString().split('T')[0];
 };
 
-const formatDisplayDate = (date) => {
-  if (!date) return 'Today';
-  return new Date(`${date}T00:00:00`).toLocaleDateString('en-US', {
+const formatDisplayDate = (date, language = 'en') => {
+  if (!date) return '';
+  return new Date(`${date}T00:00:00`).toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
@@ -50,9 +51,11 @@ const getMacroPercentages = (recap) => {
 };
 
 function AiSummarizationCard({ date, recap, error, isLoading, isGenerating, onRefresh }) {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.resolvedLanguage === 'id' ? 'id-ID' : 'en-US';
   const macroPercentages = getMacroPercentages(recap);
   const generatedAt = recap?.generated_at
-    ? new Date(recap.generated_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
+    ? new Date(recap.generated_at).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' })
     : null;
 
   return (
@@ -61,13 +64,13 @@ function AiSummarizationCard({ date, recap, error, isLoading, isGenerating, onRe
         <div>
           <div className="flex items-center gap-2 text-indigo-700 font-semibold text-lg mb-2">
             <Brain className="w-5 h-5" />
-            AI Summarization
+            {t('dashboard.aiTitle')}
           </div>
           <p className="text-indigo-800/70 text-sm leading-relaxed">
-            Daily nutrition recap and personalized recommendations from your logged meals.
+            {t('dashboard.aiSubtitle')}
           </p>
           {generatedAt && (
-            <p className="text-xs text-indigo-500 mt-2">Last generated {generatedAt}</p>
+            <p className="text-xs text-indigo-500 mt-2">{t('dashboard.lastGenerated')} {generatedAt}</p>
           )}
         </div>
 
@@ -78,14 +81,14 @@ function AiSummarizationCard({ date, recap, error, isLoading, isGenerating, onRe
           className="bg-white/80 hover:bg-white disabled:opacity-60 disabled:cursor-not-allowed text-indigo-700 border border-indigo-100 px-4 py-2 rounded-xl text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm"
         >
           {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-          {recap ? 'Refresh' : 'Generate'}
+          {recap ? t('dashboard.refresh') : t('dashboard.generate')}
         </button>
       </div>
 
       {isLoading ? (
         <div className="h-64 flex flex-col items-center justify-center text-center text-indigo-700">
           <Loader2 className="w-10 h-10 mb-4 animate-spin" />
-          <p className="text-sm font-medium">Loading today&apos;s AI recap...</p>
+          <p className="text-sm font-medium">{t('dashboard.loadingRecap')}</p>
         </div>
       ) : error ? (
         <div className="bg-white/70 border border-red-100 rounded-2xl p-6 flex flex-col items-center justify-center text-center min-h-64">
@@ -98,14 +101,14 @@ function AiSummarizationCard({ date, recap, error, isLoading, isGenerating, onRe
             className="text-sm text-indigo-700 hover:text-indigo-900 font-semibold underline underline-offset-4 flex items-center gap-2 disabled:opacity-60"
           >
             {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            Try again
+            {t('common.retry')}
           </button>
         </div>
       ) : !recap ? (
         <div className="bg-white/70 border border-indigo-100 rounded-2xl p-6 flex flex-col items-center justify-center text-center min-h-64">
           <UtensilsCrossed className="w-10 h-10 text-indigo-400 mb-3" />
           <p className="text-sm text-indigo-800/70 max-w-md">
-            No recap has been generated for {formatDisplayDate(date)} yet. Log a meal or generate a recap when meals are available.
+            {t('dashboard.noRecapBody')} ({formatDisplayDate(date, i18n.resolvedLanguage)})
           </p>
         </div>
       ) : (
@@ -118,56 +121,56 @@ function AiSummarizationCard({ date, recap, error, isLoading, isGenerating, onRe
                 </div>
               )}
               <div className={`inline-block border px-3 py-1 rounded-full text-sm font-semibold ${getScoreBg(recap.nutritional_score)}`}>
-                {formatDisplayDate(recap.date || date)}
+                {formatDisplayDate(recap.date || date, i18n.resolvedLanguage)}
               </div>
               <div className="text-indigo-500 text-xs mt-2">
-                {recap.meals_count} meal{recap.meals_count !== 1 ? 's' : ''} logged
+                {t('dashboard.mealsLogged', { count: recap.meals_count })}
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-orange-50 rounded-xl p-3">
                 <div className="flex items-center gap-1 text-[10px] font-bold text-brand-orange uppercase tracking-wider mb-1">
-                  <Zap className="w-3 h-3" /> Calories
+                  <Zap className="w-3 h-3" /> {t('dashboard.calories')}
                 </div>
                 <div className="text-2xl font-black text-gray-900">{Math.round(Number(recap.total_calories || 0))}</div>
-                <div className="text-[10px] text-gray-500">kcal</div>
+                <div className="text-[10px] text-gray-500">{t('common.kcal')}</div>
               </div>
               <div className="bg-blue-50 rounded-xl p-3">
                 <div className="flex items-center gap-1 text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1">
-                  <Utensils className="w-3 h-3" /> Protein
+                  <Utensils className="w-3 h-3" /> {t('dashboard.protein')}
                 </div>
                 <div className="text-2xl font-black text-gray-900">{Number(recap.total_protein_g || 0).toFixed(1)}</div>
-                <div className="text-[10px] text-gray-500">grams</div>
+                <div className="text-[10px] text-gray-500">{t('common.grams')}</div>
               </div>
               <div className="bg-emerald-50 rounded-xl p-3">
                 <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-1">
-                  <Zap className="w-3 h-3" /> Carbs
+                  <Zap className="w-3 h-3" /> {t('dashboard.carbs')}
                 </div>
                 <div className="text-2xl font-black text-gray-900">{Number(recap.total_carbs_g || 0).toFixed(1)}</div>
-                <div className="text-[10px] text-gray-500">grams</div>
+                <div className="text-[10px] text-gray-500">{t('common.grams')}</div>
               </div>
               <div className="bg-amber-50 rounded-xl p-3">
                 <div className="flex items-center gap-1 text-[10px] font-bold text-amber-600 uppercase tracking-wider mb-1">
-                  <Droplets className="w-3 h-3" /> Fat
+                  <Droplets className="w-3 h-3" /> {t('dashboard.fat')}
                 </div>
                 <div className="text-2xl font-black text-gray-900">{Number(recap.total_fat_g || 0).toFixed(1)}</div>
-                <div className="text-[10px] text-gray-500">grams</div>
+                <div className="text-[10px] text-gray-500">{t('common.grams')}</div>
               </div>
             </div>
           </div>
 
           <div className="lg:col-span-3 bg-white/80 rounded-2xl p-5 border border-white shadow-sm">
-            <h3 className="text-xs font-bold text-indigo-600 uppercase tracking-widest mb-3">Macro Distribution</h3>
+            <h3 className="text-xs font-bold text-indigo-600 uppercase tracking-widest mb-3">{t('dashboard.macroDistribution')}</h3>
             <div className="h-3 w-full bg-indigo-100 rounded-full overflow-hidden flex mb-2">
               <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${macroPercentages.protein}%` }} />
               <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${macroPercentages.carbs}%` }} />
               <div className="h-full bg-amber-500 transition-all duration-500" style={{ width: `${macroPercentages.fat}%` }} />
             </div>
             <div className="flex flex-wrap justify-between gap-2 text-[11px] font-semibold mb-5">
-              <span className="text-blue-600">Protein {macroPercentages.protein}%</span>
-              <span className="text-emerald-600">Carbs {macroPercentages.carbs}%</span>
-              <span className="text-amber-600">Fat {macroPercentages.fat}%</span>
+              <span className="text-blue-600">{t('dashboard.protein')} {macroPercentages.protein}%</span>
+              <span className="text-emerald-600">{t('dashboard.carbs')} {macroPercentages.carbs}%</span>
+              <span className="text-amber-600">{t('dashboard.fat')} {macroPercentages.fat}%</span>
             </div>
 
             {recap.ai_recommendation && (
@@ -175,7 +178,7 @@ function AiSummarizationCard({ date, recap, error, isLoading, isGenerating, onRe
                 <div className="flex items-start gap-3">
                   <Sparkles className="w-5 h-5 text-indigo-500 flex-shrink-0 mt-0.5" />
                   <div>
-                    <h3 className="text-xs font-bold text-indigo-600 uppercase tracking-widest mb-2">AI Recommendation</h3>
+                    <h3 className="text-xs font-bold text-indigo-600 uppercase tracking-widest mb-2">{t('dashboard.recommendation')}</h3>
                     <p className="text-sm text-indigo-900/80 leading-relaxed whitespace-pre-line">
                       {recap.ai_recommendation}
                     </p>
@@ -191,6 +194,7 @@ function AiSummarizationCard({ date, recap, error, isLoading, isGenerating, onRe
 }
 
 export default function Dashboard() {
+  const { t } = useTranslation();
   const { user, updateProfile } = useAuth();
   const navigate = useNavigate();
   const [showWeightReminder, setShowWeightReminder] = useState(false);
@@ -344,8 +348,8 @@ export default function Dashboard() {
 
       <div className="max-w-4xl">
         <header className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-1">Good morning, {user?.name?.split(' ')[0] || 'Alex'}!</h1>
-          <p className="text-gray-500">Here's your health landscape for today.</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-1">{t('dashboard.greeting', { name: user?.name?.split(' ')[0] || 'Alex' })}</h1>
+          <p className="text-gray-500">{t('dashboard.subtitle')}</p>
         </header>
 
         {showWeightReminder && (
@@ -355,8 +359,8 @@ export default function Dashboard() {
                 <Edit className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Time for your Weekly Check-in!</h3>
-                <p className="text-brand-orange text-sm font-medium">Log your weight to keep your BMI chart up-to-date.</p>
+                <h3 className="text-lg font-bold text-gray-900">{t('dashboard.weeklyCheckIn')}</h3>
+                <p className="text-brand-orange text-sm font-medium">{t('dashboard.weeklySubtitle')}</p>
               </div>
             </div>
             <form onSubmit={handleWeightSubmit} className="flex items-center gap-3">
@@ -377,7 +381,7 @@ export default function Dashboard() {
                 disabled={isSubmittingWeight}
                 className="bg-brand-orange hover:bg-brand-orange-dark text-white px-5 py-2 rounded-xl font-medium transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50"
               >
-                {isSubmittingWeight ? 'Saving...' : 'Update'}
+                {isSubmittingWeight ? t('common.saving') : t('dashboard.saveCheckIn')}
               </button>
             </form>
           </section>
@@ -385,16 +389,16 @@ export default function Dashboard() {
 
         {/* Calories Intake */}
         <section className="bg-white rounded-2xl p-6 shadow-sm border border-orange-50 mb-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Calories Intake</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-6">{t('dashboard.caloriesIntake')}</h2>
 
           <div>
             {/* Progress Bars */}
             <div>
               <div className="mb-6">
                 <div className="flex justify-between text-sm mb-2">
-                  <span className="text-gray-600 font-medium text-lg">Daily Nutrition Goal</span>
+                  <span className="text-gray-600 font-medium text-lg">{t('dashboard.dailyNutritionGoal')}</span>
                   <div className="flex items-baseline gap-1">
-                    <span className="text-gray-500 text-xs">Calories (kcal)</span>
+                    <span className="text-gray-500 text-xs">{t('dashboard.calories')} ({t('common.kcal')})</span>
                     <span className="font-semibold text-lg">{todayMacros.calories} / {GOALS.calories}</span>
                   </div>
                 </div>
@@ -406,7 +410,7 @@ export default function Dashboard() {
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <span className="text-gray-500">Protein (g)</span>
+                    <span className="text-gray-500">{t('dashboard.protein')} (g)</span>
                     <span className="font-semibold">{Math.round(todayMacros.protein)} / {GOALS.protein}</span>
                   </div>
                   <div className="h-2 w-full bg-blue-100 rounded-full overflow-hidden">
@@ -416,7 +420,7 @@ export default function Dashboard() {
 
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <span className="text-gray-500">Carbs (g)</span>
+                    <span className="text-gray-500">{t('dashboard.carbs')} (g)</span>
                     <span className="font-semibold">{Math.round(todayMacros.carbs)} / {GOALS.carbs}</span>
                   </div>
                   <div className="h-2 w-full bg-teal-100 rounded-full overflow-hidden">
@@ -426,7 +430,7 @@ export default function Dashboard() {
 
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <span className="text-gray-500">Fats (g)</span>
+                    <span className="text-gray-500">{t('dashboard.fat')} (g)</span>
                     <span className="font-semibold">{Math.round(todayMacros.fat)} / {GOALS.fat}</span>
                   </div>
                   <div className="h-2 w-full bg-orange-100 rounded-full overflow-hidden">
@@ -451,19 +455,19 @@ export default function Dashboard() {
         {/* Recently Logged */}
         <section className="bg-white rounded-2xl p-6 shadow-sm border border-orange-50">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold text-gray-900">Recently Logged</h2>
+            <h2 className="text-xl font-bold text-gray-900">{t('dashboard.recentlyLogged')}</h2>
             <button 
               onClick={() => navigate('/app/snapfood')}
               className="bg-brand-orange hover:bg-brand-orange-dark text-white font-medium py-2 px-5 rounded-full transition-colors shadow-lg shadow-orange-200 text-sm flex items-center gap-2 active:scale-95"
             >
-              <Camera className="w-4 h-4" /> Snap Meal
+              <Camera className="w-4 h-4" /> {t('dashboard.snapMeal')}
             </button>
           </div>
 
           <div className="grid grid-cols-2 gap-5">
             {foodLogs.length === 0 ? (
               <div className="col-span-2 py-8 text-center text-gray-500 font-medium">
-                No meals logged today yet. Snap your first meal!
+                {t('dashboard.noMeals')}
               </div>
             ) : (
               foodLogs.slice(0, 2).map((log) => (
@@ -474,7 +478,7 @@ export default function Dashboard() {
                     ) : (
                       <div className="w-full h-full flex flex-col items-center justify-center bg-orange-50 text-brand-orange/50 group-hover:scale-105 transition-transform duration-500">
                         <Utensils className="w-10 h-10 mb-2" />
-                        <span className="text-xs font-semibold uppercase tracking-wider">No Photo</span>
+                        <span className="text-xs font-semibold uppercase tracking-wider">{t('dashboard.noPhoto')}</span>
                       </div>
                     )}
                   </div>
