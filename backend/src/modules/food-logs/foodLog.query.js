@@ -24,15 +24,16 @@ const createFoodLog = async ({ userId, mealName, calories, protein, carbs, fat, 
 
 /**
  * Paginated list of food logs for a user.
- * Optionally filtered to a specific date (UTC date string YYYY-MM-DD).
+ * Optionally filtered to a specific local date (Asia/Jakarta, YYYY-MM-DD).
  */
 const findFoodLogs = async ({ userId, date, limit, offset }) => {
   const params = [userId, limit, offset];
   let dateClause = '';
 
   if (date) {
-    // Match any log whose logged_at falls within the given calendar date (UTC)
-    dateClause = `AND logged_at::date = $4`;
+    // The frontend sends the user's local calendar date.
+    // Supabase stores TIMESTAMPTZ in UTC, so compare in the app's local timezone.
+    dateClause = `AND (logged_at AT TIME ZONE 'Asia/Jakarta')::date = $4::date`;
     params.push(date);
   }
 
@@ -56,7 +57,7 @@ const findFoodLogs = async ({ userId, date, limit, offset }) => {
   const countParams = [userId];
   let countDateClause = '';
   if (date) {
-    countDateClause = `AND logged_at::date = $2`;
+    countDateClause = `AND (logged_at AT TIME ZONE 'Asia/Jakarta')::date = $2::date`;
     countParams.push(date);
   }
 
