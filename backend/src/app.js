@@ -65,6 +65,7 @@ console.log('[Docs] Swagger UI available at http://localhost:' + env.PORT + '/do
 // ─── API Routes ───────────────────────────────────────────────────────────────
 const BASE = '/api/v1';
 
+app.get('/', (req, res) => res.json({ success: true, status: 'ok', service: 'habitscape-api' }));
 app.get(`${BASE}/health`, (req, res) => res.json({ success: true, status: 'ok' }));
 app.use(`${BASE}/auth`, authRoutes);
 app.use(`${BASE}/food-logs`, foodLogRoutes);
