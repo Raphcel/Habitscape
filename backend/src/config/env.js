@@ -40,4 +40,8 @@ module.exports = {
 
   // File storage
   UPLOAD_DIR: optionalEnv('UPLOAD_DIR', 'uploads'),
+
+  // Supabase (Storage)
+  SUPABASE_URL: optionalEnv('SUPABASE_URL', ''),
+  SUPABASE_KEY: optionalEnv('SUPABASE_KEY', ''),
 };

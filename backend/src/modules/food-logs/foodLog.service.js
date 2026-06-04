@@ -1,5 +1,7 @@
 const FormData = require('form-data');
+const path = require('path');
 const fastapiClient = require('../../utils/fastapi.client');
+const supabase = require('../../utils/supabase.client');
 const foodLogQuery = require('./foodLog.query');
 
 /**
@@ -14,6 +16,35 @@ const analyzeFood = async (file) => {
     const err = new Error('No image file provided');
     err.statusCode = 400;
     throw err;
+  }
+
+  let imageUrl = null;
+  if (supabase) {
+    try {
+      const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+      const uniqueName = `food-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('food-images')
+        .upload(uniqueName, file.buffer, {
+          contentType: file.mimetype,
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('[Supabase Storage] Failed to upload image:', uploadError.message);
+      } else {
+        const { data: publicUrlData } = supabase.storage
+          .from('food-images')
+          .getPublicUrl(uniqueName);
+        
+        imageUrl = publicUrlData?.publicUrl || null;
+        console.log('[Supabase Storage] Image uploaded successfully. Public URL:', imageUrl);
+      }
+    } catch (storageErr) {
+      console.error('[Supabase Storage] Unexpected error during upload:', storageErr.message);
+    }
   }
 
   let mlResponse;
@@ -69,7 +100,7 @@ const analyzeFood = async (file) => {
     detected_foods: detectedFoods,
     nutrition,
     ai_summary: mlResponse.ai_summary ?? '',
-    image_url: null,
+    image_url: imageUrl,
   };
 };
 
