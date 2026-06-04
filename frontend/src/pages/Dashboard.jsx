@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { Activity, AlertCircle, Brain, Camera, Droplets, Droplet, Edit, Loader2, RefreshCw, Sparkles, Utensils, UtensilsCrossed, Zap, PersonStanding, BellDot, BatteryCharging } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { AlertCircle, Brain, Camera, Droplets, Edit, Loader2, RefreshCw, Sparkles, Utensils, UtensilsCrossed, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
@@ -387,9 +387,9 @@ export default function Dashboard() {
         <section className="bg-white rounded-2xl p-6 shadow-sm border border-orange-50 mb-6">
           <h2 className="text-xl font-bold text-gray-900 mb-6">Calories Intake</h2>
 
-          <div className="flex gap-8">
+          <div>
             {/* Progress Bars */}
-            <div className="flex-1">
+            <div>
               <div className="mb-6">
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-gray-600 font-medium text-lg">Daily Nutrition Goal</span>
@@ -436,40 +436,6 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Health Score */}
-            <div className="w-48 flex flex-col items-center justify-center border-l border-gray-100 pl-8">
-              <div className="flex items-center gap-1 text-brand-orange text-xs font-semibold mb-2 tracking-wider uppercase">
-                <Activity className="w-4 h-4" />
-                Overall Health Score
-              </div>
-              <div className="relative w-24 h-24 flex items-center justify-center mb-2">
-                <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-                  <path
-                    className="text-orange-100"
-                    strokeWidth="3"
-                    stroke="currentColor"
-                    fill="none"
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                  />
-                  <path
-                    className="text-brand-orange"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    stroke="currentColor"
-                    fill="none"
-                    strokeDasharray="82, 100"
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                  />
-                </svg>
-                <div className="absolute text-center">
-                  <span className="text-2xl font-bold text-gray-900 block leading-none">82</span>
-                  <span className="text-[10px] text-gray-400">/ 100</span>
-                </div>
-              </div>
-              <span className="bg-brand-orange-light text-brand-orange text-xs font-medium px-3 py-1 rounded-full">
-                Top 15% of cohort
-              </span>
-            </div>
           </div>
         </section>
 
