@@ -1,8 +1,7 @@
-import React, { useState, useRef } from 'react';
-import { Camera, Upload, AlertCircle, Sparkles, Utensils, Droplets, Target, ChevronRight, Edit2, Zap, Loader2, Brain, ChevronDown, ChevronUp } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Camera, AlertCircle, Sparkles, Utensils, Droplets, Target, Edit2, Zap, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
-import { analyzeFood } from '../lib/mlApi';
 
 export default function SnapFoodTracker() {
   const [hasImage, setHasImage] = useState(false);
@@ -39,15 +38,22 @@ export default function SnapFoodTracker() {
     setPreviewUrl(objectUrl);
 
     try {
-      // Call Railway ML API directly
-      const result = await analyzeFood(file);
+      // Send the image through our backend so it can upload to Supabase Storage
+      // and return a persisted image_url along with the ML analysis draft.
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const { data } = await api.post('/food-logs/analyze', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const result = data.data;
       
       // Map the ML response to our component state
       const detection = result.detection || {};
       const nutrition = result.nutrition || {};
       const detectedFoods = detection.detected_foods || [];
       const uniqueFoods = detection.unique_foods || [];
-      const nutritionFoods = nutrition.foods || [];
+      const nutritionFoods = nutrition.foods || result.nutrition_foods || [];
       
       // Build meal name from unique detected foods
       const foodNames = uniqueFoods.length > 0 
