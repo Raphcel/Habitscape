@@ -3,15 +3,18 @@ const path = require('path');
 const fs = require('fs');
 const { UPLOAD_DIR } = require('../config/env');
 
-// Ensure upload directory exists at startup
+// Resolve upload directory
 const uploadPath = path.resolve(UPLOAD_DIR);
-if (!fs.existsSync(uploadPath)) {
-  fs.mkdirSync(uploadPath, { recursive: true });
-}
 
 /** Disk storage: preserve original extension, use timestamp + random suffix as filename */
 const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadPath),
+  destination: (_req, _file, cb) => {
+    // Lazy create directory when/if disk storage is actually invoked (avoids Vercel startup crash)
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
+  },
   filename: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
