@@ -235,8 +235,7 @@ export default function Dashboard() {
 
       try {
         // Fetch today's food logs
-        const today = new Date().toISOString().split('T')[0];
-        const { data: foodResponse } = await api.get(`/food-logs?date=${today}&limit=10`);
+        const { data: foodResponse } = await api.get(`/food-logs?date=${todayDate}&limit=10`);
         const logs = foodResponse.data?.data || [];
         
         // Calculate macros
