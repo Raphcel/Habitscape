@@ -581,9 +581,6 @@ export default function History() {
                   currentLogs.map((log) => (
                     <tr key={log.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="py-4 font-semibold text-gray-800 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 flex-shrink-0 flex items-center justify-center">
-                          <Camera className="w-4 h-4 text-gray-400" />
-                        </div>
                         {editingId === log.id ? (
                           <input 
                             type="text" 

@@ -471,12 +471,6 @@ export default function Dashboard() {
             ) : (
               foodLogs.slice(0, 2).map((log) => (
                 <div key={log.id} className="rounded-2xl overflow-hidden border border-gray-100 group bg-white shadow-sm hover:shadow-md transition-shadow cursor-pointer">
-                  <div className="h-36 bg-gray-200 w-full overflow-hidden relative">
-                    <div className="w-full h-full flex flex-col items-center justify-center bg-orange-50 text-brand-orange/50 group-hover:scale-105 transition-transform duration-500">
-                      <Utensils className="w-10 h-10 mb-2" />
-                      <span className="text-xs font-semibold uppercase tracking-wider">{t('dashboard.noPhoto')}</span>
-                    </div>
-                  </div>
                   <div className="p-4">
                     <div className="flex justify-between items-baseline mb-2">
                       <h3 className="font-semibold text-gray-900 truncate pr-2" title={log.meal_name}>{log.meal_name}</h3>
