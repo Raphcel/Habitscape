@@ -20,10 +20,10 @@ const dailySummaryRoutes = require('./modules/daily-summaries/dailySummary.route
 const app = express();
 
 // ─── Security & Parsing ───────────────────────────────────────────────────────
-// Relax helmet's CSP for Swagger UI (it loads inline scripts)
+// Relax helmet's CSP so Swagger UI inline scripts work
 app.use(
   helmet({
-    contentSecurityPolicy: env.NODE_ENV === 'production' ? undefined : false,
+    contentSecurityPolicy: false,
   })
 );
 app.use(cors({
@@ -43,25 +43,24 @@ if (env.NODE_ENV !== 'test') {
   app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 }
 
-// ─── Swagger UI (dev only) ────────────────────────────────────────────────────
-if (env.NODE_ENV !== 'production') {
-  app.use(
-    '/docs',
-    swaggerUi.serve,
-    swaggerUi.setup(swaggerSpec, {
-      customSiteTitle: 'Habitscape API Docs',
-      swaggerOptions: {
-        persistAuthorization: true, // keeps token between page refreshes
-      },
-    })
-  );
-  // Expose the raw spec as JSON for external tools (Postman, Insomnia, etc.)
-  app.get('/docs.json', (req, res) => {
-    res.setHeader('Content-Type', 'application/json');
-    res.send(swaggerSpec);
-  });
-  console.log('[Docs] Swagger UI available at http://localhost:' + env.PORT + '/docs');
-}
+// ─── Swagger UI ──────────────────────────────────────────────────────────────
+app.use(
+  '/docs',
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, {
+    customSiteTitle: 'Habitscape API Docs',
+    swaggerOptions: {
+      persistAuthorization: true, // keeps token between page refreshes
+    },
+  })
+);
+// Expose the raw spec as JSON for external tools (Postman, Insomnia, etc.)
+app.get('/docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
+console.log('[Docs] Swagger UI available at http://localhost:' + env.PORT + '/docs');
+
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
 const BASE = '/api/v1';

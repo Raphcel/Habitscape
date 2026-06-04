@@ -1,4 +1,20 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Habitscape — Docker Compose
+#
+# Usage:
+#   docker compose up --build          # start all services
+#   docker compose down                # stop all services
+#   docker compose down -v             # stop + delete database volume
+#
+# Ports exposed on your machine:
+#   http://localhost:3000   → Frontend (nginx + React)
+#   http://localhost:5000   → Backend  (Express API + Swagger)
+#   localhost:5433          → PostgreSQL
+#   http://localhost:8001   → BMI ML   (FastAPI) [optional]
+# ─────────────────────────────────────────────────────────────────────────────
+
 services:
+  # ═══ DATABASE ═══════════════════════════════════════════════════════════════
   postgres:
     image: postgres:16-alpine
     container_name: habitscape-postgres
@@ -8,7 +24,7 @@ services:
       POSTGRES_USER: habitscape
       POSTGRES_PASSWORD: habitscape
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -17,6 +33,7 @@ services:
       timeout: 5s
       retries: 10
 
+  # ═══ BACKEND (Express.js API) ══════════════════════════════════════════════
   backend:
     build:
       context: ./backend
@@ -27,39 +44,45 @@ services:
         condition: service_healthy
     environment:
       PORT: 5000
-      NODE_ENV: development
+      NODE_ENV: production
       DATABASE_URL: postgres://habitscape:habitscape@postgres:5432/habitscape
-      JWT_SECRET: local-dev-secret-change-me
+      JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me}
       JWT_EXPIRES_IN: 24h
       FASTAPI_BASE_URL: https://habitscape-production.up.railway.app
       BMI_ML_BASE_URL: http://bmi-ml:8000
-      CLIENT_ORIGIN: http://localhost:5173
-      GEMINI_API_KEY: ""
+      CLIENT_ORIGIN: ${CLIENT_ORIGIN:-http://localhost:3000}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       UPLOAD_DIR: uploads
     ports:
       - "5000:5000"
     volumes:
       - backend-uploads:/app/uploads
-    command: sh -c "npm run db:init && npm start"
 
+  # ═══ FRONTEND (React + nginx) ══════════════════════════════════════════════
   frontend:
     build:
       context: ./frontend
+      args:
+        # The React app calls /api/v1/* which nginx proxies to the backend.
+        # This means NO CORS issues — everything goes through port 3000.
+        VITE_API_URL: /api/v1
     container_name: habitscape-frontend
     restart: unless-stopped
     depends_on:
       - backend
-    environment:
-      VITE_API_URL: http://localhost:5000/api/v1
     ports:
-      - "5173:5173"
-    command: npm run dev -- --host 0.0.0.0
+      - "3000:80"
 
+  # ═══ BMI ML (Optional — FastAPI + TensorFlow) ═════════════════════════════
+  # Only needed if you want local BMI predictions.
+  # To skip: docker compose up postgres backend frontend
   bmi-ml:
     build:
       context: ../ML/Habitscape/bmi-classification
     container_name: habitscape-bmi-ml
     restart: unless-stopped
+    profiles:
+      - ml
     environment:
       SUMOPOD_API_KEY: ${SUMOPOD_API_KEY:-change_me}
       SUMOPOD_BASE_URL: ${SUMOPOD_BASE_URL:-https://ai.sumopod.com/v1}

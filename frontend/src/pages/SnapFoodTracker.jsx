@@ -416,17 +416,7 @@ export default function SnapFoodTracker() {
                     </div>
                   </div>
 
-                  {/* AI Summary */}
-                  {logData.ai_summary && (
-                    <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 border border-purple-100 rounded-2xl p-4 mb-4">
-                      <div className="flex items-center gap-1.5 text-indigo-700 text-xs font-semibold uppercase tracking-wider mb-2">
-                        <Brain className="w-3.5 h-3.5" /> AI Summary
-                      </div>
-                      <p className="text-sm text-indigo-900/80 leading-relaxed whitespace-pre-line">
-                        {logData.ai_summary}
-                      </p>
-                    </div>
-                  )}
+
 
                   {/* Per-Food Nutrition Breakdown */}
                   {logData.nutrition_foods && logData.nutrition_foods.length > 0 && (

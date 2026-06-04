@@ -1,331 +1,295 @@
-# Habitscape Full Stack
+# 🏠 Habitscape — Full Stack
 
-Habitscape is a capstone MVP for health and nutrition tracking. This folder contains the React frontend, Express backend, PostgreSQL schema, Docker Compose setup, and Postman collection for local API testing.
+Habitscape is a health & nutrition tracking platform featuring AI-powered food detection, BMI analysis, and lifestyle recommendations.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  FE[React / Vite Frontend] --> BE[Express API]
-  BE --> DB[(PostgreSQL)]
-  BE --> FoodML[FastAPI Food Detection ML]
-  BE -. planned .-> BMIML[FastAPI BMI ML]
+  Browser["🌐 Browser"]
+  Browser --> Nginx["nginx :3001<br/>(React SPA)"]
+  Nginx -- "/api/*" --> BE["Express API :5000"]
+  BE --> DB[(PostgreSQL :5433)]
+  BE -- "Food Detection" --> Railway["Railway ML API<br/>(Cloud)"]
+  BE -. "BMI Prediction" .-> BMI["BMI ML :8001<br/>(Optional Docker)"]
 ```
-
-Main services:
 
 | Service | Stack | Local URL |
-|---|---|---|
-| Frontend | React + Vite | http://localhost:5173 |
-| Backend | Express.js | http://localhost:5000 |
-| PostgreSQL | Postgres 16 | localhost:5432 |
-| Food ML | FastAPI + Ultralytics/YOLO | http://localhost:8000 |
-| BMI ML | FastAPI + TensorFlow/Keras | http://localhost:8001 |
+|---------|-------|-----------|
+| Frontend | React + Vite + nginx | http://localhost:3001 |
+| Backend | Express.js + PostgreSQL | http://localhost:5000 |
+| PostgreSQL | Postgres 16 Alpine | localhost:5433 |
+| Food Detection ML | FastAPI + YOLO (Railway) | https://habitscape-production.up.railway.app |
+| BMI ML (optional) | FastAPI + TensorFlow | http://localhost:8001 |
 
-## Snap Food Flow
+---
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant Frontend
-    participant Backend
-    participant ML
-    participant DB
+## 🚀 Quick Start with Docker
 
-    User->>Frontend: Upload meal photo
-    Frontend->>Backend: POST /api/v1/food-logs/analyze (image)
-    Backend->>ML: POST /api/v1/analyze (file)
-    ML-->>Backend: Detection, nutrition, AI summary
-    Backend-->>Frontend: Unsaved draft result
-    User->>Frontend: Review or edit values
-    User->>Frontend: Confirm
-    Frontend->>Backend: POST /api/v1/food-logs
-    Backend->>DB: Insert confirmed food log
+### Prerequisites
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) with Docker Compose v2
+- The workspace must have this layout:
+
 ```
-
-Images are not persisted by the backend in the current MVP flow. The frontend keeps a local preview while the user reviews the result. Confirmed food logs store nutrition data and may have `image_url = null`.
-
-## Prerequisites
-
-- Docker Desktop with Docker Compose v2.
-- The full workspace layout must stay as-is:
-
-```text
 Capstone/
-├── Full Stack/
+├── Full Stack/          ← you are here
 │   ├── backend/
 │   ├── frontend/
-│   └── docker-compose.yml
+│   ├── docker-compose.yml
+│   └── .env             ← create from .env.example
 └── ML/
     └── Habitscape/
-        ├── food-detection/
-        └── bmi-classification/
+        └── bmi-classification/   ← only needed with --profile ml
 ```
 
-## Required ML Model Files
-
-The Docker setup can build containers without the model files, but real ML prediction endpoints will fail until the files exist.
-
-Food detection expects:
-
-```text
-ML/Habitscape/food-detection/weights/best.pt
-```
-
-BMI classification expects:
-
-```text
-ML/Habitscape/bmi-classification/models/bmi_model_new.keras
-ML/Habitscape/bmi-classification/models/scaler_bmi_new.pkl
-```
-
-If these files are missing, use manual backend routes and health checks first. Treat ML inference as blocked until the artifacts are added.
-
-## Run Everything With Docker
-
-From this `Full Stack` folder:
+### 1. Configure environment
 
 ```bash
+# From the "Full Stack" directory:
+cp .env.example .env
+```
+
+Edit `.env` and set your secrets (at minimum, change `JWT_SECRET` for production).
+
+### 2. Build & run
+
+```bash
+# Start core services (frontend + backend + postgres)
 docker compose up --build
+
+# Or include the BMI ML service:
+docker compose --profile ml up --build
 ```
 
-Open:
+### 3. Open the app
 
-- Frontend: http://localhost:5173
-- Express health: http://localhost:5000/api/v1/health
-- Express Swagger: http://localhost:5000/docs
-- Food ML Swagger: http://localhost:8000/docs
-- BMI ML Swagger: http://localhost:8001/docs
+| What | URL |
+|------|-----|
+| **App (Frontend)** | http://localhost:3001 |
+| **API Health Check** | http://localhost:3001/api/v1/health |
+| **Swagger API Docs** | http://localhost:3001/docs |
+| **Backend Direct** | http://localhost:5000/api/v1/health |
+| **BMI ML Swagger** (if `--profile ml`) | http://localhost:8001/docs |
 
-Stop services:
+### 4. Stop services
 
 ```bash
-docker compose down
+docker compose down           # stop containers
+docker compose down -v        # stop + delete database volumes
 ```
 
-Stop and delete database/uploads volumes:
+---
+
+## 🖥️ Manual Run (Without Docker)
+
+### Backend
 
 ```bash
-docker compose down -v
+cd backend
+npm install
+cp .env.example .env          # edit with your DB credentials
+npm run db:init                # create tables in PostgreSQL
+npm run dev                    # start with nodemon (hot reload)
 ```
 
-## Logs
+The backend requires a running PostgreSQL instance. Update `DATABASE_URL` in `backend/.env`.
+
+### Frontend
 
 ```bash
-docker compose logs -f backend
-docker compose logs -f frontend
-docker compose logs -f food-ml
-docker compose logs -f bmi-ml
-docker compose logs -f postgres
+cd frontend
+npm install
+npm run dev                    # Vite dev server on http://localhost:5173
 ```
 
-## Environment Defaults
+The Vite dev server proxies `/api/*` to `http://localhost:5000` automatically (see `vite.config.js`).
 
-The local Docker Compose file sets development defaults automatically.
+---
 
-| Variable | Docker value |
-|---|---|
-| `DATABASE_URL` | `postgres://habitscape:habitscape@postgres:5432/habitscape` |
-| `JWT_SECRET` | `local-dev-secret-change-me` |
-| `FASTAPI_BASE_URL` | `http://food-ml:8000` |
-| `CLIENT_ORIGIN` | `http://localhost:5173` |
-| `VITE_API_URL` | `http://localhost:5000/api/v1` |
+## 📁 Project Structure
 
-For DeepSeek/SumoPod-backed ML calls, set these before running Compose if you have real credentials.
-
-PowerShell:
-
-```powershell
-$env:SUMOPOD_API_KEY="your_key_here"
-docker compose up --build
+```
+Full Stack/
+├── backend/
+│   ├── src/
+│   │   ├── config/          # env.js, database.js, swagger.js
+│   │   ├── middleware/      # auth.middleware.js, error.middleware.js
+│   │   ├── modules/
+│   │   │   ├── auth/        # register, login, profile
+│   │   │   ├── food-logs/   # food detection → save → list
+│   │   │   ├── weight/      # weight tracking
+│   │   │   ├── forecaster/  # BMI prediction proxy
+│   │   │   └── daily-summaries/
+│   │   ├── db/schema.sql    # PostgreSQL schema
+│   │   └── utils/           # response helpers, API clients
+│   ├── Dockerfile
+│   ├── server.js
+│   └── package.json
+├── frontend/
+│   ├── src/
+│   │   ├── pages/           # Dashboard, SnapFood, HealthForecaster, etc.
+│   │   ├── components/      # Reusable UI components
+│   │   ├── context/         # AuthContext
+│   │   └── lib/             # api.js (axios), mlApi.js
+│   ├── nginx.conf           # Production reverse proxy config
+│   ├── Dockerfile           # Multi-stage build (Vite → nginx)
+│   └── package.json
+├── docker-compose.yml
+├── .env.example
+└── postman/                  # Postman collection + environment
 ```
 
-On macOS/Linux:
+---
 
-```bash
-export SUMOPOD_API_KEY="your_key_here"
-docker compose up --build
-```
+## 🔌 API Endpoints
 
-If no key is set, Compose uses a placeholder so the containers can start, but AI-backed endpoints can still fail.
+All endpoints are prefixed with `/api/v1`.
 
-## Database Initialization
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/health` | No | Health check |
+| `POST` | `/auth/register` | No | Create account |
+| `POST` | `/auth/login` | No | Login → JWT token |
+| `GET` | `/auth/me` | Yes | Get current user profile |
+| `PATCH` | `/auth/me` | Yes | Update profile |
+| `POST` | `/food-logs/analyze` | Yes | Upload food image → ML analysis |
+| `POST` | `/food-logs` | Yes | Save confirmed food log |
+| `GET` | `/food-logs` | Yes | List food logs (paginated) |
+| `PATCH` | `/food-logs/:id` | Yes | Update a food log |
+| `DELETE` | `/food-logs/:id` | Yes | Delete a food log |
+| `POST` | `/weight` | Yes | Add weight entry |
+| `GET` | `/weight` | Yes | List weight history |
+| `POST` | `/forecaster/predict-bmi` | Yes | BMI prediction via ML model |
+| `GET` | `/daily-summaries` | Yes | Get daily AI summaries |
 
-The backend service runs this on startup:
+Full interactive docs: http://localhost:3000/docs (or http://localhost:5000/docs)
 
-```bash
-npm run db:init
-```
+---
 
-That applies:
+## 🔑 Environment Variables
 
-```text
-backend/src/db/schema.sql
-```
+### Docker Compose (`.env` at root)
 
-The database data is stored in the Docker volume `postgres-data`.
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `JWT_SECRET` | `local-dev-secret-change-me` | **Change in production!** |
+| `CLIENT_ORIGIN` | `http://localhost:3000` | Frontend URL for CORS |
+| `GEMINI_API_KEY` | _(empty)_ | Google Gemini API key for AI summaries |
+| `SUMOPOD_API_KEY` | `change_me` | For BMI ML AI recommendations |
 
-## Health Checks
+### Backend (`backend/.env`)
 
-Use these after `docker compose up --build`:
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `5000` | Express server port |
+| `NODE_ENV` | `development` | `development` or `production` |
+| `DATABASE_URL` | — | PostgreSQL connection string |
+| `JWT_SECRET` | — | JWT signing secret |
+| `FASTAPI_BASE_URL` | Railway URL | Food detection ML endpoint |
+| `BMI_ML_BASE_URL` | `http://localhost:8001` | BMI ML endpoint |
+| `CLIENT_ORIGIN` | `http://localhost:5173` | CORS origin |
+| `GEMINI_API_KEY` | _(empty)_ | Google Gemini key |
+| `UPLOAD_DIR` | `uploads` | Food image upload directory |
 
-```bash
-curl http://localhost:5000/api/v1/health
-curl http://localhost:8000/health
-curl http://localhost:8001/api/v1/health
-```
+---
 
-PowerShell:
+## 🐛 Troubleshooting
 
-```powershell
-Invoke-RestMethod http://localhost:5000/api/v1/health
-Invoke-RestMethod http://localhost:8000/health
-Invoke-RestMethod http://localhost:8001/api/v1/health
-```
-
-## API Testing With Postman
-
-Import these two files into Postman:
-
-```text
-postman/Habitscape.postman_collection.json
-postman/Habitscape.local.postman_environment.json
-```
-
-Select the `Habitscape Local` environment before running requests.
-
-Recommended order:
-
-1. `00 - Express Health / Health Check`
-2. `01 - Auth / Register - New Test User`
-3. `01 - Auth / Get Current User`
-4. `02 - Food Logs / Create Manual Food Log`
-5. `03 - Weight / Add Weight Log`
-6. Direct ML health checks
-
-Image upload requests require selecting a real local image file in Postman.
-
-## Known Integration Issue
-
-The current Express-to-Food-ML contract appears to be out of sync.
-
-Current Express behavior:
-
-```text
-POST /predict/food
-body: { log_id, image_url }
-```
-
-Current Food ML FastAPI behavior:
-
-```text
-POST /api/v1/analyze
-multipart/form-data field: file
-```
-
-Because of that, Docker may start every service successfully while `POST /api/v1/food-logs/analyze` through Express still fails. Fixing this contract is separate from the Docker setup.
-
-Recommended fix direction:
-
-- Either update Express to forward multipart image data to `POST /api/v1/analyze`.
-- Or add a compatible FastAPI endpoint that accepts `{ log_id, image_url }`.
-- Lock the contract with OpenAPI docs or integration tests.
-
-## Troubleshooting
-
-### Backend cannot connect to PostgreSQL
-
-Check the database service:
+### Backend can't connect to PostgreSQL
 
 ```bash
 docker compose logs -f postgres
-```
-
-Then restart backend:
-
-```bash
 docker compose restart backend
 ```
 
 ### Port already in use
 
-Stop any local process using ports `5173`, `5000`, `5432`, `8000`, or `8001`, or change the host port in `docker-compose.yml`.
+Stop any local process using ports `3000`, `5000`, or `5432`:
 
-### Food ML image prediction fails
-
-Confirm the model exists:
-
-```text
-ML/Habitscape/food-detection/weights/best.pt
+```powershell
+# PowerShell — find process on a port:
+netstat -ano | findstr :5000
 ```
 
-Then check logs:
+### Frontend can't reach backend (Docker)
+
+The frontend nginx container proxies `/api/*` to the backend container. Check:
 
 ```bash
-docker compose logs -f food-ml
+docker compose logs -f frontend
+docker compose logs -f backend
+```
+
+### Food detection fails
+
+The food detection ML runs on Railway (cloud). Check if it's healthy:
+
+```powershell
+Invoke-RestMethod https://habitscape-production.up.railway.app/api/v1/health
 ```
 
 ### BMI prediction fails
 
-Confirm both files exist:
+The BMI ML service only runs if you started with `--profile ml`:
 
-```text
+```bash
+docker compose --profile ml up --build
+```
+
+Check if the model files exist:
+
+```
 ML/Habitscape/bmi-classification/models/bmi_model_new.keras
 ML/Habitscape/bmi-classification/models/scaler_bmi_new.pkl
 ```
 
-Then check logs:
+---
+
+## 🧪 Testing with Postman
+
+1. Import these files into Postman:
+   - `postman/Habitscape.postman_collection.json`
+   - `postman/Habitscape.local.postman_environment.json`
+
+2. Select the **Habitscape Local** environment.
+
+3. Run in order:
+   1. `Health Check` → should return `{ "success": true }`
+   2. `Register` → creates a test user
+   3. `Login` → saves JWT token automatically
+   4. `Get Current User` → verifies authentication
+   5. `Create Food Log` / `Add Weight` → test CRUD
+
+---
+
+## 🚢 Deployment Notes
+
+### Railway / Render / Fly.io
+
+For cloud deployment, you'll typically deploy the **backend** and **frontend** as separate services:
+
+**Backend:**
+- Use `backend/Dockerfile` as-is
+- Set all required environment variables (especially `DATABASE_URL`, `JWT_SECRET`)
+- Set `CLIENT_ORIGIN` to your frontend's deployed URL
+
+**Frontend:**
+- Use `frontend/Dockerfile` as-is
+- Set build arg `VITE_API_URL` to your backend's deployed URL (e.g., `https://api.habitscape.com/api/v1`)
+- The nginx config will serve static files and proxy API calls
+
+**Database:**
+- Provision a managed PostgreSQL instance
+- The backend runs `npm run db:init` on startup to apply the schema
+
+---
+
+## 📝 Logs
 
 ```bash
-docker compose logs -f bmi-ml
-```
-
-### Frontend cannot reach backend
-
-The Docker frontend uses:
-
-```text
-VITE_API_URL=http://localhost:5000/api/v1
-```
-
-Check that the backend is exposed on the host:
-
-```bash
-curl http://localhost:5000/api/v1/health
-```
-
-## Manual Run Without Docker
-
-Backend:
-
-```bash
-cd backend
-npm install
-copy .env.example .env
-npm run db:init
-npm run dev
-```
-
-Frontend:
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Food ML:
-
-```bash
-cd ../ML/Habitscape/food-detection
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
-```
-
-BMI ML:
-
-```bash
-cd ../ML/Habitscape/bmi-classification
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8001
+docker compose logs -f              # all services
+docker compose logs -f backend      # backend only
+docker compose logs -f frontend     # frontend only
+docker compose logs -f postgres     # database only
 ```

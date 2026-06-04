@@ -1,4 +1,5 @@
 /ml-service
-/README.md
 /reference
 /requirements.md
+.env
+!.env.example
