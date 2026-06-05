@@ -18,6 +18,7 @@ const forecasterRoutes = require('./modules/forecaster/forecaster.routes');
 const dailySummaryRoutes = require('./modules/daily-summaries/dailySummary.routes');
 
 const app = express();
+app.set('trust proxy', 1); // Trust first proxy (Vercel)
 
 // ─── Security & Parsing ───────────────────────────────────────────────────────
 // Relax helmet's CSP so Swagger UI inline scripts work
