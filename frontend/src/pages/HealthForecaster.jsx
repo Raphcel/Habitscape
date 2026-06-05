@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Activity, TrendingUp, Shield, Target, BarChart3, Brain, Heart, Moon, Dumbbell, Utensils, Flame, AlertTriangle, ChevronRight, Sparkles } from 'lucide-react';
+import { Activity, TrendingUp, Shield, Target, BarChart3, Brain, Heart, Moon, Dumbbell, Utensils, Flame, AlertTriangle, ChevronRight, Sparkles, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import CustomSelect from '../components/CustomSelect';
 import CustomSlider from '../components/CustomSlider';
+import api from '../lib/api';
 
 // ─── Data Science Constants (from Streamlit dashboard analysis) ───────────────
 
@@ -21,27 +22,6 @@ const FEATURE_IMPORTANCE = [
   { key: 'calorie_surplus',  label: 'Calorie Surplus',      importance: 0.040, icon: TrendingUp, color: '#EA580C' },
 ];
 
-// Correlation coefficients from BQ2 analysis
-const CORRELATIONS = {
-  fat_total_g: +0.39,
-  calorie_daily: +0.31,
-  stress_level: +0.15,
-  alcohol_num: +0.10,
-  diet_quality_num: -0.36,
-  exercise_freq_num: -0.25,
-  sleep_hours: -0.18,
-};
-
-// A/B Testing insights (BQ3) — Cohen's d effect sizes
-const AB_INSIGHTS = {
-  diet:     { d: 0.67, effect: 'Medium',  desc: 'Diet quality has the strongest effect on BMI' },
-  exercise: { d: 0.35, effect: 'Small',   desc: 'Regular exercise (≥3x/week) consistently lowers BMI' },
-  sleep:    { d: 0.28, effect: 'Small',   desc: 'Sleeping ≥7h associated with 1.5 lower BMI points' },
-  stress:   { d: 0.22, effect: 'Small',   desc: 'High stress (≥7) linked to higher BMI' },
-  smoking:  { d: 0.15, effect: 'Negligible', desc: 'Smoking shows minimal direct BMI impact' },
-  alcohol:  { d: 0.18, effect: 'Negligible', desc: 'Alcohol consumption has slight positive correlation' },
-};
-
 export default function HealthForecaster() {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -49,9 +29,9 @@ export default function HealthForecaster() {
   // Lifestyle inputs
   const [calories, setCalories] = useState(2200);
   const [fatTotal, setFatTotal] = useState(70);
-  const [sleepHours, setSleepHours] = useState(7);
-  const [stressLevel, setStressLevel] = useState(5);
-  const [exerciseFreq, setExerciseFreq] = useState(3);
+  const [sleepHours, setSleepHours] = useState(6);
+  const [stressLevel, setStressLevel] = useState(8);
+  const [exerciseFreq, setExerciseFreq] = useState(4);
   const [dietQuality, setDietQuality] = useState(3);
   const [smoker, setSmoker] = useState(false);
   const [alcohol, setAlcohol] = useState(1);
@@ -64,23 +44,29 @@ export default function HealthForecaster() {
   };
 
   // Profile inputs
-  const [age, setAge] = useState(24);
+  const [age, setAge] = useState(22);
   const [heightCm, setHeightCm] = useState(170);
   const [weightKg, setWeightKg] = useState(70);
   const [gender, setGender] = useState('Male');
+  const [predictionResult, setPredictionResult] = useState(null);
+  const [predictionError, setPredictionError] = useState('');
+  const [isPredicting, setIsPredicting] = useState(false);
+  const [predictionRequestSignature, setPredictionRequestSignature] = useState('');
 
   useEffect(() => {
     if (user) {
-      if (user.age) setAge(user.age);
-      if (user.height_cm) setHeightCm(user.height_cm);
-      if (user.weight_kg) setWeightKg(user.weight_kg);
-      if (user.gender) {
-        const normalized = user.gender.charAt(0).toUpperCase() + user.gender.slice(1).toLowerCase();
-        if (normalized === 'Male' || normalized === 'Female') {
-          setGender(normalized);
+      const frame = requestAnimationFrame(() => {
+        if (user.weight_kg) setWeightKg(user.weight_kg);
+        if (user.gender) {
+          const normalized = user.gender.charAt(0).toUpperCase() + user.gender.slice(1).toLowerCase();
+          if (normalized === 'Male' || normalized === 'Female') {
+            setGender(normalized);
+          }
         }
-      }
+      });
+      return () => cancelAnimationFrame(frame);
     }
+    return undefined;
   }, [user]);
 
   // Profile input change/blur handlers to prevent nonsense values (e.g. 1000 kg, 300 cm)
@@ -156,12 +142,9 @@ export default function HealthForecaster() {
     const calculatedBmi = heightM > 0 ? Number((currentWeight / (heightM * heightM)).toFixed(1)) : 0;
 
     // 2. BMR calculation (Mifflin-St Jeor)
-    let bmrVal = 0;
-    if (gender.toLowerCase() === 'female') {
-      bmrVal = 10 * currentWeight + 6.25 * currentHeight - 5 * currentAge - 161;
-    } else {
-      bmrVal = 10 * currentWeight + 6.25 * currentHeight - 5 * currentAge + 5;
-    }
+    const bmrVal = gender.toLowerCase() === 'female'
+      ? 10 * currentWeight + 6.25 * currentHeight - 5 * currentAge - 161
+      : 10 * currentWeight + 6.25 * currentHeight - 5 * currentAge + 5;
 
     // 3. TDEE calculation (Activity Factor based on exerciseFreq)
     let activityFactor = 1.2; // Sedentary (0 times/week)
@@ -175,8 +158,8 @@ export default function HealthForecaster() {
     const tdeeVal = bmrVal * activityFactor;
 
     // 4. BMI Category & Calorie adjustments
-    let category = 'Normal';
-    let targetCalories = tdeeVal;
+    let category;
+    let targetCalories;
     if (calculatedBmi < 18.5) {
       category = 'Underweight';
       targetCalories = tdeeVal + 300; // Surplus for healthy weight gain
@@ -203,6 +186,43 @@ export default function HealthForecaster() {
       bmiCategory: category
     };
   }, [age, heightCm, weightKg, gender, exerciseFreq]);
+
+  const predictionPayload = useMemo(() => ({
+    age: Number(age) || 22,
+    alcohol_num: Number(alcohol) || 0,
+    calorie_daily: Number(calories) || 0,
+    diet_quality_num: Number(dietQuality) || 3,
+    exercise_freq_num: Number(exerciseFreq) || 0,
+    fat_total_g: Number(fatTotal) || 0,
+    height_cm: Number(heightCm) || 170,
+    sleep_hours: Number(sleepHours) || 0,
+    smoker_num: smoker ? 1 : 0,
+    stress_level: Number(stressLevel) || 1,
+  }), [age, alcohol, calories, dietQuality, exerciseFreq, fatTotal, heightCm, sleepHours, smoker, stressLevel]);
+
+  const predictionSignature = useMemo(() => JSON.stringify(predictionPayload), [predictionPayload]);
+  const isPredictionStale = Boolean(predictionResult && predictionRequestSignature && predictionRequestSignature !== predictionSignature);
+
+  const handlePredictBmi = async () => {
+    const requestPayload = predictionPayload;
+    const requestSignature = predictionSignature;
+
+    setIsPredicting(true);
+    setPredictionError('');
+
+    try {
+      const { data } = await api.post('/forecaster/predict-bmi', requestPayload, {
+        timeout: 90_000,
+      });
+      setPredictionResult(data.data ?? data);
+      setPredictionRequestSignature(requestSignature);
+    } catch (err) {
+      const message = err.response?.data?.message || err.message || t('forecaster.predictionErrorBody');
+      setPredictionError(message);
+    } finally {
+      setIsPredicting(false);
+    }
+  };
 
   // ─── Real-time derived features (mirror Streamlit dashboard feature engineering) ──
   const derivedFeatures = useMemo(() => {
@@ -242,8 +262,8 @@ export default function HealthForecaster() {
     // Smoking
     score += smoker ? -5 : 3;
 
-    // Alcohol (1-5 scale)
-    score += alcohol === 1 ? 3 : alcohol === 2 ? 1 : alcohol === 3 ? 0 : alcohol === 4 ? -3 : -6;
+    // Alcohol (0=no, 1=light, 2=heavy)
+    score += alcohol === 0 ? 3 : alcohol === 1 ? 1 : -4;
 
     return Math.max(0, Math.min(100, Math.round(score)));
   }, [calories, fatTotal, sleepHours, stressLevel, exerciseFreq, dietQuality, smoker, alcohol, idealCalories]);
@@ -279,14 +299,14 @@ export default function HealthForecaster() {
     if (stressLevel >= 7)
       factors.push({ level: 'moderate', label: `High stress level ${stressLevel}/10`, icon: Brain, color: '#F59E0B' });
 
-    if (alcohol >= 4)
-      factors.push({ level: 'moderate', label: `High alcohol consumption (${alcohol}/5)`, icon: AlertTriangle, color: '#F59E0B' });
+    if (alcohol >= 2)
+      factors.push({ level: 'moderate', label: 'Heavy alcohol consumption', icon: AlertTriangle, color: '#F59E0B' });
 
     if (factors.length === 0)
       factors.push({ level: 'good', label: 'All lifestyle indicators look healthy!', icon: Shield, color: '#10B981' });
 
     return factors;
-  }, [calories, fatTotal, sleepHours, stressLevel, exerciseFreq, dietQuality, smoker, alcohol, idealCalories]);
+  }, [calories, fatTotal, sleepHours, stressLevel, exerciseFreq, dietQuality, alcohol, idealCalories]);
 
   // ─── Strategic Recommendations (from A/B testing BQ3 conclusions) ──
   const recommendations = useMemo(() => {
@@ -361,11 +381,11 @@ export default function HealthForecaster() {
       });
     }
 
-    if (alcohol >= 4) {
+    if (alcohol >= 2) {
       recs.push({
         priority: 4,
         title: 'Limit Alcohol Consumption',
-        desc: `Your alcohol rate is ${alcohol}/5. Population data shows alcohol has a minor correlation with BMI (Cohen's d = 0.18). Reducing consumption helps prevent unnecessary calorie surplus.`,
+        desc: "Your alcohol intake is marked as heavy. Population data shows alcohol has a minor correlation with BMI (Cohen's d = 0.18). Reducing consumption helps prevent unnecessary calorie surplus.",
         impact: t('forecaster.impactLow'),
         color: '#F59E0B',
       });
@@ -382,9 +402,29 @@ export default function HealthForecaster() {
     }
 
     return recs.sort((a, b) => a.priority - b.priority);
-  }, [calories, fatTotal, sleepHours, stressLevel, exerciseFreq, dietQuality, smoker, alcohol, idealCalories, t]);
+  }, [calories, fatTotal, sleepHours, stressLevel, exerciseFreq, dietQuality, alcohol, idealCalories, t]);
 
+  const predictionProbabilities = useMemo(() => {
+    const probabilities = predictionResult?.probabilities || {};
+    return ['Underweight', 'Normal', 'Overweight', 'Obese']
+      .filter((category) => probabilities[category] !== undefined)
+      .map((category) => ({
+        category,
+        value: Number(probabilities[category]) || 0,
+      }));
+  }, [predictionResult]);
 
+  const predictionConfidencePct = predictionResult
+    ? Math.round((Number(predictionResult.confidence) || 0) * 100)
+    : 0;
+
+  const getBmiCategoryClass = (category) => {
+    if (category === 'Underweight') return 'bg-blue-100 text-blue-700';
+    if (category === 'Normal') return 'bg-emerald-100 text-emerald-700';
+    if (category === 'Overweight') return 'bg-amber-100 text-amber-700';
+    if (category === 'Obese') return 'bg-red-100 text-red-700';
+    return 'bg-slate-100 text-slate-700';
+  };
 
   const getScoreColor = (score) => {
     if (score >= 85) return '#10B981';
@@ -497,13 +537,8 @@ export default function HealthForecaster() {
                   {/* BMI & Metabolic Summary Card */}
                   <div className="bg-slate-50/50 rounded-2xl p-4.5 border border-slate-100/80 space-y-3.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Metabolic Summary</span>
-                      <span className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider ${
-                        bmiCategory === 'Underweight' ? 'bg-blue-100 text-blue-700' :
-                        bmiCategory === 'Normal' ? 'bg-emerald-100 text-emerald-700' :
-                        bmiCategory === 'Overweight' ? 'bg-amber-100 text-amber-700' :
-                        'bg-red-100 text-red-700'
-                      }`}>
+                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">{t('forecaster.currentMetabolicSummary')}</span>
+                      <span className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider ${getBmiCategoryClass(bmiCategory)}`}>
                         {bmiCategory} (BMI: {actualBmi})
                       </span>
                     </div>
@@ -618,9 +653,13 @@ export default function HealthForecaster() {
                         name="alcohol"
                         value={String(alcohol)}
                         onChange={(e) => setAlcohol(Number(e.target.value))}
-                        options={['1', '2', '3', '4', '5']}
+                        options={[
+                          { value: '0', label: t('forecaster.alcoholNone') },
+                          { value: '1', label: t('forecaster.alcoholLight') },
+                          { value: '2', label: t('forecaster.alcoholHeavy') },
+                        ]}
                       />
-                      <p className="text-[10px] text-gray-400 mt-1">1 = None, 5 = Heavy</p>
+                      <p className="text-[10px] text-gray-400 mt-1">0 = None, 2 = Heavy</p>
                     </div>
                   </div>
 
@@ -641,6 +680,102 @@ export default function HealthForecaster() {
 
           {/* ═══ RIGHT COLUMN: Results, Analytics & Recommendations ═══ */}
           <div className="col-span-12 lg:col-span-8 space-y-6">
+
+            {/* ML BMI Prediction Result */}
+            <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-brand-orange/10 flex items-center justify-center flex-shrink-0">
+                    <Brain className="w-5 h-5 text-brand-orange" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide">{t('forecaster.mlPredictionTitle')}</h2>
+                    <p className="text-xs text-gray-500 mt-1 leading-relaxed max-w-xl">{t('forecaster.mlPredictionBody')}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handlePredictBmi}
+                  disabled={isPredicting}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-orange px-4 py-2.5 text-xs font-black uppercase tracking-wide text-white shadow-sm transition-all hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {isPredicting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                  {isPredicting ? t('forecaster.predicting') : t('forecaster.predictButton')}
+                </button>
+              </div>
+
+              <div className="mt-5">
+                {!predictionResult && !predictionError && !isPredicting && (
+                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 p-5 text-center">
+                    <p className="text-sm font-bold text-gray-800">{t('forecaster.predictionEmptyTitle')}</p>
+                    <p className="text-xs text-gray-500 mt-1">{t('forecaster.predictionEmptyBody')}</p>
+                  </div>
+                )}
+
+                {isPredicting && !predictionResult && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {[0, 1, 2].map((item) => (
+                      <div key={item} className="h-20 rounded-2xl bg-slate-100 animate-pulse" />
+                    ))}
+                  </div>
+                )}
+
+                {predictionResult && (
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                    <div className="lg:col-span-4 rounded-2xl bg-slate-50/60 border border-slate-100 p-4">
+                      <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('forecaster.predictedCategory')}</div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className={`text-xs font-black px-3 py-1.5 rounded-full uppercase tracking-wider ${getBmiCategoryClass(predictionResult.bmi_category)}`}>
+                          {predictionResult.bmi_category}
+                        </span>
+                        {isPredictionStale && (
+                          <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-full">{t('forecaster.inputsChanged')}</span>
+                        )}
+                      </div>
+                      <div className="mt-4">
+                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('forecaster.confidence')}</div>
+                        <div className="text-3xl font-black text-gray-900 mt-1">{predictionConfidencePct}%</div>
+                      </div>
+                    </div>
+
+                    <div className="lg:col-span-8 rounded-2xl bg-slate-50/60 border border-slate-100 p-4">
+                      <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">{t('forecaster.probabilities')}</div>
+                      <div className="space-y-2.5">
+                        {predictionProbabilities.map((item) => (
+                          <div key={item.category} className="grid grid-cols-[88px_1fr_42px] items-center gap-2">
+                            <span className="text-[11px] font-semibold text-gray-600 truncate">{item.category}</span>
+                            <div className="h-2.5 rounded-full bg-white border border-slate-100 overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-brand-orange transition-all duration-500"
+                                style={{ width: `${Math.round(item.value * 100)}%` }}
+                              />
+                            </div>
+                            <span className="text-[11px] font-bold text-gray-700 text-right">{Math.round(item.value * 100)}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="lg:col-span-12 rounded-2xl border border-orange-100 bg-orange-50/40 p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Sparkles className="w-4 h-4 text-brand-orange" />
+                        <h3 className="text-xs font-black text-gray-900 uppercase tracking-wide">{t('forecaster.aiRecommendation')}</h3>
+                      </div>
+                      <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+                        {predictionResult.ai_recommendation || t('forecaster.aiRecommendationFallback')}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {predictionError && (
+                  <div className="mt-4 rounded-2xl border border-red-100 bg-red-50 p-4">
+                    <p className="text-sm font-bold text-red-700">{t('forecaster.predictionErrorTitle')}</p>
+                    <p className="text-xs text-red-600 mt-1 leading-relaxed">{predictionError}</p>
+                  </div>
+                )}
+              </div>
+            </div>
 
             {/* ROW 1: Synergy Score & Risk Indicators */}
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
@@ -942,7 +1077,7 @@ export default function HealthForecaster() {
                     <ul className="text-xs text-gray-550 space-y-2 list-disc pl-4 leading-relaxed">
                       <li>Kelola stres Anda di bawah tingkat 5/10 menggunakan meditasi, jurnal harian, atau hobi santai.</li>
                       <li>Hindari atau hentikan konsumsi rokok karena berisiko merusak kapiler pembuluh darah dan kesehatan jantung jangka panjang.</li>
-                      <li>Batasi alkohol di tingkat terendah (skor 1 or 2) guna mengurangi kalori kosong dan menjaga kinerja organ hati.</li>
+                      <li>Batasi alkohol di tingkat terendah (skor 0 atau 1) guna mengurangi kalori kosong dan menjaga kinerja organ hati.</li>
                     </ul>
                   </div>
                 </div>

@@ -1,0 +1,14 @@
+# Environment & secrets
+.env
+
+# Model weights
+weights/
+
+# Python cache
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Debug scripts (opsional)
+debug_detect.py

@@ -12,12 +12,12 @@ export default defineConfig({
     // The frontend code still uses VITE_API_URL (or the axios baseURL) for non-proxied envs.
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'http://localhost:5001',
         changeOrigin: true,
         secure: false,
       },
       '/uploads': {
-        target: 'http://localhost:5000',
+        target: 'http://localhost:5001',
         changeOrigin: true,
         secure: false,
       },
