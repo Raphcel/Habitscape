@@ -3,7 +3,7 @@ import axios from 'axios';
 /**
  * Axios instance for the Habitscape API.
  *
- * Dev:  requests go to /api/v1/... → Vite proxy → http://localhost:5000
+ * Dev:  requests go to /api/v1/... → Vite proxy → http://localhost:5001
  *       (no CORS headers needed because it's same-origin from the browser's perspective)
  * Prod: set VITE_API_URL=https://your-backend.com/api/v1 in your hosting env
  */

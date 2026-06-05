@@ -7,7 +7,7 @@ const { BMI_ML_BASE_URL } = require('../config/env');
  */
 const bmimlClient = axios.create({
   baseURL: BMI_ML_BASE_URL,
-  timeout: 60_000, // 60 s — cold starts can be slow
+  timeout: 90_000, // 90 s — BMI inference and LLM recommendations can be slow
   headers: {
     Accept: 'application/json',
     'Content-Type': 'application/json',
