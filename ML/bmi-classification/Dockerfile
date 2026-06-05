@@ -10,6 +10,7 @@ RUN grep -v '^tensorflow==' requirements.txt > /tmp/requirements-docker.txt \
     && pip install --no-cache-dir -r /tmp/requirements-docker.txt
 
 COPY app ./app
+COPY models ./models
 
 EXPOSE 8000
 
